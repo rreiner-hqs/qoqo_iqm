@@ -1,0 +1,16 @@
+target/*
+*__pycache__*
+*.mypy_cache*
+*.egg-info*
+*.coverage
+*/docs/generated*
+*coveragehtml/*
+*/docs/_build*
+*.DS_Store
+*.ipynb_checkpoints*
+*.json
+*.yaml
+.vscode/*
+*.profraw
+*.lcov
+*code-workspace
