@@ -1,0 +1,18 @@
+(undo-tree-save-format-version . 1)
+"a4dcbb4cce09601993852f0f26da1282400c001b"
+[nil nil nil nil (25609 55827 412967 326000) 0 nil]
+([nil nil ((1 . 2) (t 25607 20607 0 0)) nil (25609 55831 88419 755000) 0 nil] [nil nil ((nil rear-nonsticky nil 629 . 630) (nil fontified nil 2 . 630) (2 . 630) 1 (t 25607 20607 0 0)) ((#("// Copyright © 2020-2023 HQS Quantum Simulations GmbH. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the \"License\"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed under the
+// License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+// express or implied. See the License for the specific language governing permissions and
+// limitations under the License.
+" 0 3 (fontified nil face font-lock-comment-delimiter-face) 3 76 (fontified nil face font-lock-comment-face) 76 78 (fontified nil face font-lock-comment-delimiter-face) 78 79 (fontified nil face font-lock-comment-face) 79 82 (fontified nil face font-lock-comment-delimiter-face) 82 179 (fontified nil face font-lock-comment-face) 179 182 (fontified nil face font-lock-comment-delimiter-face) 182 254 (fontified nil face font-lock-comment-face) 254 256 (fontified nil face font-lock-comment-delimiter-face) 256 257 (fontified nil face font-lock-comment-face) 257 264 (fontified nil face font-lock-comment-delimiter-face) 264 307 (fontified nil face font-lock-comment-face) 307 309 (fontified nil face font-lock-comment-delimiter-face) 309 310 (fontified nil face font-lock-comment-face) 310 313 (fontified nil face font-lock-comment-delimiter-face) 313 403 (fontified nil face font-lock-comment-face) 403 406 (fontified nil face font-lock-comment-delimiter-face) 406 503 (fontified nil face font-lock-comment-face) 503 506 (fontified nil face font-lock-comment-delimiter-face) 506 594 (fontified nil face font-lock-comment-face) 594 597 (fontified nil face font-lock-comment-delimiter-face) 597 627 (fontified nil face font-lock-comment-face) 627 628 (fontified nil rear-nonsticky nil face font-lock-comment-face)) . 2) (undo-tree-id0 . -628) (undo-tree-id1 . -628) (undo-tree-id2 . -627) (undo-tree-id3 . -628) (undo-tree-id4 . -628) (undo-tree-id5 . -264) (undo-tree-id6 . -306) (undo-tree-id7 . -1) (undo-tree-id8 . -1) (undo-tree-id9 . -1) (undo-tree-id10 . -627) (undo-tree-id11 . -627) (undo-tree-id12 . -593) (undo-tree-id13 . -593) (undo-tree-id14 . -502) (undo-tree-id15 . -502) (undo-tree-id16 . -402) (undo-tree-id17 . -402) (undo-tree-id18 . -309) (undo-tree-id19 . -309) (undo-tree-id20 . 553) (undo-tree-id21 . -628) (nil fontified t 508 . 596) (nil fontified t 505 . 508) (nil fontified t 408 . 505) (nil fontified t 405 . 408) (nil fontified t 315 . 405) (nil fontified t 312 . 315) (nil fontified t 311 . 312) (nil fontified t 309 . 311) (nil fontified t 266 . 309) (nil fontified t 259 . 266) (nil fontified t 258 . 259) (nil fontified t 256 . 258) (nil fontified t 184 . 256) (nil fontified t 181 . 184) (nil fontified t 84 . 181) (nil fontified t 81 . 84) (nil fontified t 80 . 81) (nil fontified t 78 . 80) (nil fontified t 5 . 78) (nil fontified t 2 . 5) (nil rear-nonsticky t 629 . 630)) (25609 55827 412190 805000) 0 nil])
+([nil current ((nil rear-nonsticky nil 628 . 629) (nil fontified nil 1 . 629) (1 . 629)) nil (25609 55831 88414 114000) 0 nil])
+nil
+nil
