@@ -336,13 +336,12 @@ impl Backend {
                     msg: format!("Could not convert result into IqmRunResult: {:?}", e),
                 })?;
 
-        // TODO print warnings if any
-        // if iqm_result.warnings.is_some() {
-        //     println!("Warnings: {:?}", iqm_result.warnings.unwrap());
-        // }
+        if iqm_result.warnings.is_some() {
+            eprintln!("Warnings: {:?}", iqm_result.clone().warnings.unwrap());
+        }
+        
         if iqm_result.status == Status::Failed {
             return Err(RoqoqoBackendError::GenericError {
-                // TODO format this string with newlines
                 msg: format!(
                     "Job FAILED with job ID: {}\nMessage: {}",
                     id,
@@ -428,18 +427,6 @@ impl EvaluatingBackend for Backend {
                 msg: format!("Error during POST request: {:?}", e),
             })?;
 
-        // TODO handle bad status codes
-        // let status_code = resp.status();
-        // if status_code != reqwest::StatusCode::OK {
-        //     return Err(RoqoqoBackendError::NetworkError {
-        //         msg: format!(
-        //             "Request to server failed with HTTP status code {:?}",
-        //             status_code
-        //         ),
-        //     });
-        // }
-
-        // TODO fix this
         #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
         struct ResponseBody {
             id: String,
