@@ -17,10 +17,12 @@ use pyo3::types::PyByteArray;
 use crate::devices::*;
 use qoqo::convert_into_circuit;
 use roqoqo::prelude::*;
-use roqoqo::registers::Registers;
+use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister, Registers};
+use roqoqo::Circuit;
 use roqoqo_iqm::{Backend, IqmDevice};
 
 use bincode::{deserialize, serialize};
+use std::collections::HashMap;
 
 /// IQM backend
 ///
@@ -183,5 +185,152 @@ impl BackendWrapper {
         self.internal
             .run_circuit(&circuit)
             .map_err(|err| PyRuntimeError::new_err(format!("Running Circuit failed {:?}", err)))
+    }
+
+    /// Run all circuits corresponding to one measurement with the AQT backend.
+    ///
+    /// An expectation value measurement in general involves several circuits.
+    /// Each circuit is passed to the backend and executed separately.
+    /// During execution values are written to and read from classical registers
+    /// (List[bool], List[float], List[complex]).
+    /// To produce sufficient statistics for evaluating expectation values,
+    /// circuits have to be run multiple times.
+    /// The results of each repetition are concatenated in OutputRegisters
+    /// (List[List[bool]], List[List[float]], List[List[complex]]).  
+    ///
+    ///
+    /// Args:
+    ///     measurement (Measurement): The measurement that is run on the backend.
+    ///
+    /// Returns:
+    ///     Tuple[Dict[str, List[List[bool]]], Dict[str, List[List[float]]]], Dict[str, List[List[complex]]]]: The output registers written by the evaluated circuits.
+    ///
+    /// Raises:
+    ///     TypeError: Circuit argument cannot be converted to qoqo Circuit
+    ///     RuntimeError: Running Circuit failed
+    pub fn run_measurement_registers(&self, measurement: &PyAny) -> PyResult<Registers> {
+        let mut run_circuits: Vec<Circuit> = Vec::new();
+
+        let get_constant_circuit = measurement
+            .call_method0("constant_circuit")
+            .map_err(|err| {
+                PyTypeError::new_err(format!(
+                    "Cannot extract constant circuit from measurement {:?}",
+                    err
+                ))
+            })?;
+        let const_circuit = get_constant_circuit
+            .extract::<Option<&PyAny>>()
+            .map_err(|err| {
+                PyTypeError::new_err(format!(
+                    "Cannot extract constant circuit from measurement {:?}",
+                    err
+                ))
+            })?;
+
+        let constant_circuit = match const_circuit {
+            Some(x) => convert_into_circuit(x).map_err(|err| {
+                PyTypeError::new_err(format!(
+                    "Cannot extract constant circuit from measurement {:?}",
+                    err
+                ))
+            })?,
+            None => Circuit::new(),
+        };
+
+        let get_circuit_list = measurement.call_method0("circuits").map_err(|err| {
+            PyTypeError::new_err(format!(
+                "Cannot extract circuit list from measurement {:?}",
+                err
+            ))
+        })?;
+        let circuit_list = get_circuit_list.extract::<Vec<&PyAny>>().map_err(|err| {
+            PyTypeError::new_err(format!(
+                "Cannot extract circuit list from measurement {:?}",
+                err
+            ))
+        })?;
+
+        for c in circuit_list {
+            run_circuits.push(
+                constant_circuit.clone()
+                    + convert_into_circuit(c).map_err(|err| {
+                        PyTypeError::new_err(format!(
+                            "Cannot extract circuit of circuit list from measurement {:?}",
+                            err
+                        ))
+                    })?,
+            )
+        }
+
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        let mut float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+        let mut complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+
+        for circuit in run_circuits {
+            let (tmp_bit_reg, tmp_float_reg, tmp_complex_reg) =
+                self.internal.run_circuit(&circuit).map_err(|err| {
+                    PyRuntimeError::new_err(format!("Running a circuit failed {:?}", err))
+                })?;
+
+            // Add results for current circuit to the total registers
+            for (key, mut val) in tmp_bit_reg.into_iter() {
+                if let Some(x) = bit_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = bit_registers.insert(key, val);
+                }
+            }
+            for (key, mut val) in tmp_float_reg.into_iter() {
+                if let Some(x) = float_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = float_registers.insert(key, val);
+                }
+            }
+            for (key, mut val) in tmp_complex_reg.into_iter() {
+                if let Some(x) = complex_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = complex_registers.insert(key, val);
+                }
+            }
+        }
+        Ok((bit_registers, float_registers, complex_registers))
+    }
+
+    /// Evaluates expectation values of a measurement with the backend.
+    ///
+    ///
+    /// Args:
+    ///     measurement (Measurement): The measurement that is run on the backend.
+    ///
+    /// Returns:
+    ///     Optional[Dict[str, float]]: The  dictionary of expectation values.
+    ///
+    /// Raises:
+    ///     TypeError: Measurement evaluate function could not be used
+    ///     RuntimeError: Internal error measurement.evaluation returned unknown type
+    pub fn run_measurement(&self, measurement: &PyAny) -> PyResult<Option<HashMap<String, f64>>> {
+        let (bit_registers, float_registers, complex_registers) =
+            self.run_measurement_registers(measurement)?;
+        let get_expectation_values = measurement
+            .call_method1(
+                "evaluate",
+                (bit_registers, float_registers, complex_registers),
+            )
+            .map_err(|err| {
+                PyTypeError::new_err(format!(
+                    "Measurement evaluate function could not be used: {:?}",
+                    err
+                ))
+            })?;
+        get_expectation_values
+            .extract::<Option<HashMap<String, f64>>>()
+            .map_err(|_| {
+                PyRuntimeError::new_err(
+                    "Internal error measurement.evaluation returned unknown type",
+                )
+            })
     }
 }

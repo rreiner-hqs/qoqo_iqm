@@ -339,7 +339,7 @@ impl Backend {
         if iqm_result.warnings.is_some() {
             eprintln!("Warnings: {:?}", iqm_result.clone().warnings.unwrap());
         }
-        
+
         if iqm_result.status == Status::Failed {
             return Err(RoqoqoBackendError::GenericError {
                 msg: format!(
