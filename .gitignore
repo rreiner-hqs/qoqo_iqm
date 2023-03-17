@@ -3,3 +3,5 @@ target/*
 .DS_Store
 *__pycache__*
 *.~undo-tree~
+.vscode/*
+*code-workspace
