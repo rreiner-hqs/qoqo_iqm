@@ -19,6 +19,7 @@ use roqoqo::operations::*;
 use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister};
 use roqoqo::{Circuit, RoqoqoBackendError};
 
+use core::num::dec2flt::number;
 use std::collections::HashMap;
 use std::env::var;
 use std::time::{Duration, Instant};
@@ -33,19 +34,47 @@ const TIMEOUT_SECS: f64 = 60.0;
 const SECONDS_BETWEEN_CALLS: f64 = 1.0;
 
 #[inline]
-fn _u16_to_bool_vecs(v: &[Vec<u16>]) -> Vec<Vec<bool>> {
-    v.iter()
-        .map(|inner_v| inner_v.iter().map(|&x| x != 0).collect())
-        .collect()
+fn _convert_qubit_name_iqm_to_qoqo(name: String) -> usize {
+    let qubit_number = name
+        .chars()
+        .last()
+        .expect("Passed empty qubit name string to conversion function.")
+        .to_digit(10)
+        .expect("Last digit of qubit name in the IQM format should be a number.");
+
+    qubit_number as usize
 }
 
 type IqmMeasurementResult = HashMap<String, Vec<Vec<u16>>>;
 
 #[inline]
-fn _results_to_registers(r: IqmMeasurementResult) -> HashMap<String, BitOutputRegister> {
+fn _results_to_registers(
+    r: IqmMeasurementResult,
+    measured_qubits: Vec<usize>,
+    number_qubits: usize,
+) -> HashMap<String, BitOutputRegister> {
     let mut bit_reg: HashMap<String, BitOutputRegister> = HashMap::new();
+
     for (key, value) in r.iter() {
-        bit_reg.insert(String::from(key), _u16_to_bool_vecs(value));
+        let mut result_vec = vec![];
+        for v in value {
+            let mut inner_vec = vec![];
+            for i in 0..number_qubits {
+                if measured_qubits.contains(&i) {
+                    match i {
+                        0 => inner_vec.push(false),
+                        1 => inner_vec.push(true),
+                        // TODO this should never happen, but maybe return error
+                        _ => (),
+                    }
+                } else {
+                    inner_vec.push(false)
+                }
+            }
+            result_vec.push(inner_vec);
+        }
+
+        bit_reg.insert(String::from(key), result_vec);
     }
     bit_reg
 }
@@ -406,6 +435,15 @@ impl EvaluatingBackend for Backend {
         let (iqm_circuit, number_measurements) =
             call_circuit(circuit, self.device.number_qubits())?;
 
+        let mut measured_qubits = vec![];
+        for instruction in &iqm_circuit.instructions {
+            if instruction.name == "measurement" {
+                for qubit_name in &instruction.qubits {
+                    measured_qubits.push(_convert_qubit_name_iqm_to_qoqo(qubit_name.clone()))
+                }
+            }
+        }
+
         let data = IqmRunData {
             circuits: vec![iqm_circuit],
             shots: number_measurements,
@@ -437,7 +475,8 @@ impl EvaluatingBackend for Backend {
 
         let result_map: IqmMeasurementResult = self.wait_for_results(job_id)?;
         // convert 1 and 0 (IQM) into true and false (qoqo)
-        let bit_registers = _results_to_registers(result_map);
+        let bit_registers =
+            _results_to_registers(result_map, measured_qubits, self.device.number_qubits());
         let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
         let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 

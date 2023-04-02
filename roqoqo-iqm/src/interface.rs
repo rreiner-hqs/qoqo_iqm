@@ -20,7 +20,7 @@ use roqoqo::RoqoqoBackendError;
 /// Convert a qubit number into the format accepted by IQM.
 // e.g. "QB2" for qoqo_qubit number 1 (IQM qubits start from 1)
 #[inline]
-fn _convert_qubit_name(qoqo_qubit: usize) -> String {
+fn _convert_qubit_name_qoqo_to_iqm(qoqo_qubit: usize) -> String {
     format!("QB{}", qoqo_qubit + 1)
 }
 
@@ -102,7 +102,7 @@ pub fn call_circuit<'a>(
                             })?;
                         if let CalculatorFloat::Str(s) = meas_readout {
                             if s == &readout {
-                                i.qubits.push(_convert_qubit_name(*o.qubit()));
+                                i.qubits.push(_convert_qubit_name_qoqo_to_iqm(*o.qubit()));
                                 found = true;
                                 break;
                             }
@@ -114,7 +114,7 @@ pub fn call_circuit<'a>(
                     // In this case, a new IqmInstruction is created corresponding to the measurement
                     let meas = IqmInstruction {
                         name: "measurement".to_string(),
-                        qubits: vec![_convert_qubit_name(*o.qubit())],
+                        qubits: vec![_convert_qubit_name_qoqo_to_iqm(*o.qubit())],
                         args: HashMap::from([("key".to_string(), CalculatorFloat::Str(readout))]),
                     };
                     circuit_vec.push(meas)
@@ -197,13 +197,13 @@ pub fn call_operation(operation: &Operation) -> Result<IqmInstruction, RoqoqoBac
 
             Ok(IqmInstruction {
                 name: "phased_rx".to_string(),
-                qubits: vec![_convert_qubit_name(*op.qubit())],
+                qubits: vec![_convert_qubit_name_qoqo_to_iqm(*op.qubit())],
                 args: op_parameters,
             })
         }
         Operation::ControlledPauliZ(op) => {
-            let control = _convert_qubit_name(*op.control());
-            let target = _convert_qubit_name(*op.target());
+            let control = _convert_qubit_name_qoqo_to_iqm(*op.control());
+            let target = _convert_qubit_name_qoqo_to_iqm(*op.target());
 
             Ok(IqmInstruction {
                 name: "cz".to_string(),
