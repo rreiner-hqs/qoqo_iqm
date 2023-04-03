@@ -19,7 +19,6 @@ use roqoqo::operations::*;
 use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister};
 use roqoqo::{Circuit, RoqoqoBackendError};
 
-use core::num::dec2flt::number;
 use std::collections::HashMap;
 use std::env::var;
 use std::time::{Duration, Instant};
@@ -42,41 +41,36 @@ fn _convert_qubit_name_iqm_to_qoqo(name: String) -> usize {
         .to_digit(10)
         .expect("Last digit of qubit name in the IQM format should be a number.");
 
-    qubit_number as usize
+    qubit_number as usize - 1
 }
 
 type IqmMeasurementResult = HashMap<String, Vec<Vec<u16>>>;
 
+// Helper function to convert the IQM result format into the classical register format used by
+// Roqoqo. This involved changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
+// the classical output registers which have been initialized with only `false` entries. 
 #[inline]
 fn _results_to_registers(
     r: IqmMeasurementResult,
-    measured_qubits: Vec<usize>,
-    number_qubits: usize,
-) -> HashMap<String, BitOutputRegister> {
-    let mut bit_reg: HashMap<String, BitOutputRegister> = HashMap::new();
+    measured_qubits_map: HashMap<String, Vec<usize>>,
+    output_registers: &mut HashMap<String, BitOutputRegister>,
+) -> Result<(), RoqoqoBackendError> {
 
-    for (key, value) in r.iter() {
-        let mut result_vec = vec![];
-        for v in value {
-            let mut inner_vec = vec![];
-            for i in 0..number_qubits {
-                if measured_qubits.contains(&i) {
-                    match i {
-                        0 => inner_vec.push(false),
-                        1 => inner_vec.push(true),
-                        // TODO this should never happen, but maybe return error
-                        _ => (),
-                    }
-                } else {
-                    inner_vec.push(false)
-                }
+    for (reg, reg_result) in r.iter() {
+        let measured_qubits = measured_qubits_map.get(reg).unwrap(); 
+        let output_values = output_registers.get_mut(reg).unwrap();
+        
+        for (i, shot_result) in reg_result.iter().enumerate() {
+            for (j, qubit) in measured_qubits.iter().enumerate() {
+                output_values[i][*qubit] ^= shot_result[j] != 0
             }
-            result_vec.push(inner_vec);
-        }
 
-        bit_reg.insert(String::from(key), result_vec);
+
+        }
     }
-    bit_reg
+        
+
+    Ok(())
 }
 
 #[inline]
@@ -432,17 +426,14 @@ impl EvaluatingBackend for Backend {
         &self,
         circuit: impl Iterator<Item = &'a Operation>,
     ) -> RegisterResult {
-        let (iqm_circuit, number_measurements) =
-            call_circuit(circuit, self.device.number_qubits())?;
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-        let mut measured_qubits = vec![];
-        for instruction in &iqm_circuit.instructions {
-            if instruction.name == "measurement" {
-                for qubit_name in &instruction.qubits {
-                    measured_qubits.push(_convert_qubit_name_iqm_to_qoqo(qubit_name.clone()))
-                }
-            }
-        }
+
+        let (iqm_circuit, register_mapping, number_measurements) =
+            call_circuit(circuit, self.device.number_qubits(), &mut bit_registers)?;
+
 
         let data = IqmRunData {
             circuits: vec![iqm_circuit],
@@ -474,11 +465,8 @@ impl EvaluatingBackend for Backend {
             .id;
 
         let result_map: IqmMeasurementResult = self.wait_for_results(job_id)?;
-        // convert 1 and 0 (IQM) into true and false (qoqo)
-        let bit_registers =
-            _results_to_registers(result_map, measured_qubits, self.device.number_qubits());
-        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
-        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+
+        _results_to_registers(result_map, register_mapping, &mut bit_registers)?;
 
         Ok((bit_registers, float_registers, complex_registers))
     }
