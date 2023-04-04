@@ -88,6 +88,33 @@ impl Device for IqmDevice {
         }
     }
 
+    /// Returns the gate time of a three qubit operation if the three qubit operation is available on device.
+    ///
+    /// # Arguments
+    ///
+    /// * `hqslang` - The hqslang name of a two qubit gate.
+    /// * `control` - The control qubit the gate acts on
+    /// * `target` - The target qubit the gate acts on
+    ///
+    /// # Returns
+    ///
+    /// * `Some<f64>` - The gate time.
+    /// * `None` - The gate is not available on the device.
+    ///
+    fn three_qubit_gate_time(
+        &self,
+        hqslang: &str,
+        control_0: &usize,
+        control_1: &usize,
+        target: &usize,
+    ) -> Option<f64> {
+        match self {
+            IqmDevice::DemoDevice(x) => {
+                x.three_qubit_gate_time(hqslang, control_0, control_1, target)
+            }
+        }
+    }
+
     /// Returns the gate time of a multi qubit operation if the multi qubit operation is available on device.
     ///
     /// # Arguments

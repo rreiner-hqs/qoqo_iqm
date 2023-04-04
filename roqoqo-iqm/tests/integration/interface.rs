@@ -53,7 +53,7 @@ fn test_failure_unsupported_operation(operation: operations::Operation) {
 }
 
 #[test]
-fn test_call_circuit() {
+fn test_call_circuit_repeated_measurement() {
     let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
     let mut inner_circuit = Circuit::new();
     inner_circuit += operations::ControlledPauliZ::new(0, 1);
@@ -95,10 +95,56 @@ fn test_call_circuit() {
     }
     instruction_vec.push(meas_instruction);
 
-    let res_comp: IqmCircuit = IqmCircuit {
+    let res_expected: IqmCircuit = IqmCircuit {
         name: String::from("my_qc"),
         instructions: instruction_vec,
     };
 
-    assert_eq!(res, res_comp)
+    assert_eq!(res, res_expected)
+}
+
+#[test]
+fn test_call_circuit_single_measurement() {
+    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+
+    let mut circuit = Circuit::new();
+    circuit += operations::ControlledPauliZ::new(0, 1);
+    circuit += operations::RotateXY::new(0, 1.0.into(), 1.0.into());
+    circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
+    circuit += operations::MeasureQubit::new(0, "ro".to_string(), 0);
+    circuit += operations::MeasureQubit::new(1, "ro".to_string(), 1);
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers)
+        .unwrap()
+        .0;
+
+    let cz_instruction = IqmInstruction {
+        name: "cz".to_string(),
+        qubits: vec!["QB1".to_string(), "QB2".to_string()],
+        args: HashMap::new(),
+    };
+    let xy_instruction = IqmInstruction {
+        name: "phased_rx".to_string(),
+        qubits: vec!["QB1".to_string()],
+        args: HashMap::from([
+            ("angle_t".to_string(), CalculatorFloat::Float(1.0)),
+            ("phase_t".to_string(), CalculatorFloat::Float(1.0)),
+        ]),
+    };
+    let meas_instruction = IqmInstruction {
+        name: "measurement".to_string(),
+        qubits: vec!["QB1".to_string(), "QB2".to_string()],
+        args: HashMap::from([("key".to_string(), CalculatorFloat::Str("ro".to_string()))]),
+    };
+
+    let mut instruction_vec = vec![];
+    instruction_vec.push(cz_instruction);
+    instruction_vec.push(xy_instruction);
+    instruction_vec.push(meas_instruction);
+
+    let res_expected: IqmCircuit = IqmCircuit {
+        name: String::from("my_qc"),
+        instructions: instruction_vec,
+    };
+
+    assert_eq!(res, res_expected)
 }

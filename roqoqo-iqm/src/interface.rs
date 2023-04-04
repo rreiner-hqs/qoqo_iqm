@@ -102,10 +102,15 @@ pub fn call_circuit<'a>(
             }
             Operation::MeasureQubit(o) => {
                 let readout = o.readout().clone();
-                register_mapping
-                    .get_mut(&readout)
-                    .unwrap()
-                    .push(*o.readout_index());
+                match register_mapping.get_mut(&readout) {
+                    Some(x) => x.push(*o.readout_index()),
+                    None => {
+                        return Err(RoqoqoBackendError::GenericError {
+                            msg: "A MeasureQubit operation is writing to an undefined register."
+                                .to_string(),
+                        })
+                    }
+                }
                 let mut found: bool = false;
                 // Check if we already have a measurement to the same register
                 // if yes, add the qubit being measured to that measurement
@@ -141,17 +146,28 @@ pub fn call_circuit<'a>(
 
                 match o.qubit_mapping() {
                     None => {
-                        register_mapping.insert(
-                            o.readout().to_string(),
-                            (0..device_number_qubits).collect(),
-                        );
+                        if output_registers.contains_key(&readout) {
+                            let readout_length = output_registers
+                                .get(&readout)
+                                .unwrap()[0]
+                                .len();
+                            register_mapping.insert(
+                                o.readout().to_string(),
+                                (0..readout_length).collect(),
+                            );
+                        } else {
+                            return Err(RoqoqoBackendError::GenericError {
+                                msg: "A PragmaRepeatedMeasurement operation is writing to an undefined register.".to_string() })
+                        }
                     }
                     Some(map) => {
-                        for qubit in map.keys().sorted() {
-                            register_mapping
-                                .get_mut(o.readout())
-                                .unwrap()
-                                .push(map[qubit])
+                        match register_mapping.get_mut(o.readout()) {
+                            Some(x) => {
+                                for qubit in map.keys().sorted() {
+                                    x.push(map[qubit])
+                                }},
+                            None => return Err(RoqoqoBackendError::GenericError {
+                                msg: "A PragmaRepeatedMeasurement operation is writing to an undefined register.".to_string() })
                         }
                     }
                 }
