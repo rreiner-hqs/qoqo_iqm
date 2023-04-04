@@ -10,9 +10,9 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use itertools::Itertools;
 
 use qoqo_calculator::CalculatorFloat;
 use roqoqo::operations::*;
@@ -63,7 +63,7 @@ pub struct IqmInstruction {
     pub args: HashMap<String, CalculatorFloat>,
 }
 
-// HashMap that to each register name associates the indices in the register that are being affected by measurements. These indices are saved in the order in which the measurement operations appear in the circuit, since this is the order in which the backend returns the results.   
+// HashMap that to each register name associates the indices in the register that are being affected by measurements. These indices are saved in the order in which the measurement operations appear in the circuit, since this is the order in which the backend returns the results.
 type RegisterMapping = HashMap<String, Vec<usize>>;
 
 /// Converts all operations in a [roqoqo::Circuit] into instructions for IQM Hardware or IQM Simulators
@@ -140,9 +140,12 @@ pub fn call_circuit<'a>(
                 let readout = o.readout().clone();
 
                 match o.qubit_mapping() {
-                    None => {                        
-                        register_mapping.insert(o.readout().to_string(), (0..device_number_qubits).into_iter().collect());
-                    },
+                    None => {
+                        register_mapping.insert(
+                            o.readout().to_string(),
+                            (0..device_number_qubits).into_iter().collect(),
+                        );
+                    }
                     Some(map) => {
                         for qubit in map.keys().sorted() {
                             register_mapping
@@ -150,7 +153,7 @@ pub fn call_circuit<'a>(
                                 .unwrap()
                                 .push(map[qubit])
                         }
-                    },
+                    }
                 }
 
                 let measure_all = IqmInstruction {
@@ -252,4 +255,3 @@ pub fn call_operation(operation: &Operation) -> Result<IqmInstruction, RoqoqoBac
         }),
     }
 }
-

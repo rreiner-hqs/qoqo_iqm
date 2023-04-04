@@ -12,6 +12,7 @@
 
 use qoqo_calculator::CalculatorFloat;
 use roqoqo::operations;
+use roqoqo::registers::BitOutputRegister;
 use roqoqo::{Circuit, RoqoqoBackendError};
 use roqoqo_iqm::{call_circuit, call_operation, IqmCircuit, IqmInstruction};
 
@@ -53,6 +54,7 @@ fn test_failure_unsupported_operation(operation: operations::Operation) {
 
 #[test]
 fn test_call_circuit() {
+    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
     let mut inner_circuit = Circuit::new();
     inner_circuit += operations::ControlledPauliZ::new(0, 1);
 
@@ -62,7 +64,9 @@ fn test_call_circuit() {
     circuit += operations::PragmaLoop::new(CalculatorFloat::Float(3.0), inner_circuit);
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
-    let res = call_circuit(circuit.iter(), 2).unwrap().0;
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers)
+        .unwrap()
+        .0;
 
     let cz_instruction = IqmInstruction {
         name: "cz".to_string(),

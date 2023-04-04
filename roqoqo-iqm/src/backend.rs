@@ -48,27 +48,23 @@ type IqmMeasurementResult = HashMap<String, Vec<Vec<u16>>>;
 
 // Helper function to convert the IQM result format into the classical register format used by
 // Roqoqo. This involved changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
-// the classical output registers which have been initialized with only `false` entries. 
+// the classical output registers which have been initialized with only `false` entries.
 #[inline]
 fn _results_to_registers(
     r: IqmMeasurementResult,
     measured_qubits_map: HashMap<String, Vec<usize>>,
     output_registers: &mut HashMap<String, BitOutputRegister>,
 ) -> Result<(), RoqoqoBackendError> {
-
     for (reg, reg_result) in r.iter() {
-        let measured_qubits = measured_qubits_map.get(reg).unwrap(); 
+        let measured_qubits = measured_qubits_map.get(reg).unwrap();
         let output_values = output_registers.get_mut(reg).unwrap();
-        
+
         for (i, shot_result) in reg_result.iter().enumerate() {
             for (j, qubit) in measured_qubits.iter().enumerate() {
                 output_values[i][*qubit] ^= shot_result[j] != 0
             }
-
-
         }
     }
-        
 
     Ok(())
 }
@@ -430,10 +426,8 @@ impl EvaluatingBackend for Backend {
         let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
         let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-
         let (iqm_circuit, register_mapping, number_measurements) =
             call_circuit(circuit, self.device.number_qubits(), &mut bit_registers)?;
-
 
         let data = IqmRunData {
             circuits: vec![iqm_circuit],
