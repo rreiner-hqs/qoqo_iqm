@@ -143,7 +143,7 @@ pub fn call_circuit<'a>(
                     None => {
                         register_mapping.insert(
                             o.readout().to_string(),
-                            (0..device_number_qubits).into_iter().collect(),
+                            (0..device_number_qubits).collect(),
                         );
                     }
                     Some(map) => {
