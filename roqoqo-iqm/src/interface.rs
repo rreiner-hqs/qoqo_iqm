@@ -176,7 +176,6 @@ pub fn call_circuit<'a>(
                     }
                         })?;
                 let reps = (*reps_ref) as i32;
-                // add the inner circuit for the specified number of repetitions
                 for _ in 0..reps {
                     for i in o.circuit().iter() {
                         let instruction = call_operation(i)?;

@@ -56,8 +56,16 @@ fn _results_to_registers(
     output_registers: &mut HashMap<String, BitOutputRegister>,
 ) -> Result<(), RoqoqoBackendError> {
     for (reg, reg_result) in r.iter() {
-        let measured_qubits = measured_qubits_map.get(reg).unwrap();
-        let output_values = output_registers.get_mut(reg).unwrap();
+        let measured_qubits = match measured_qubits_map.get(reg) {
+            Some(x) => x,
+            None => return Err(RoqoqoBackendError::GenericError {
+                msg: "Backend results contain registers that are not present in the measured_qubits_map.".to_string() })
+        };
+        let output_values = match output_registers.get_mut(reg) {
+            Some(x) => x,
+            None => return Err(RoqoqoBackendError::GenericError {
+                msg: "Backend results contain registers that are not present in the BitRegisters initialized by the Definition operations.".to_string() })
+        };
 
         for (i, shot_result) in reg_result.iter().enumerate() {
             for (j, qubit) in measured_qubits.iter().enumerate() {
@@ -481,29 +489,35 @@ mod tests {
     #[test]
     fn test_results_to_registers() {
         let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        bit_registers.insert("reg1".to_string(), vec![
-            vec![false, false, false, false, false],
-            vec![false, false, false, false, false],]);
-        bit_registers.insert("reg2".to_string(), vec![
-            vec![false, false, false],
-            vec![false, false, false],]);
+        bit_registers.insert(
+            "reg1".to_string(),
+            vec![
+                vec![false, false, false, false, false],
+                vec![false, false, false, false, false],
+            ],
+        );
+        bit_registers.insert(
+            "reg2".to_string(),
+            vec![vec![false, false, false], vec![false, false, false]],
+        );
         let mut iqm_results = HashMap::new();
-        iqm_results.insert("reg1".to_string(), vec![
-            vec![0, 1, 0],
-            vec![1, 1, 0],]);
-        iqm_results.insert("reg2".to_string(), vec![
-            vec![1, 1],
-            vec![1, 0],]);
+        iqm_results.insert("reg1".to_string(), vec![vec![0, 1, 0], vec![1, 1, 0]]);
+        iqm_results.insert("reg2".to_string(), vec![vec![1, 1], vec![1, 0]]);
         let mut measured_qubits_map = HashMap::new();
-        measured_qubits_map.insert("reg1".to_string(), vec![0,2,4]);
-        measured_qubits_map.insert("reg2".to_string(), vec![1,2]);
+        measured_qubits_map.insert("reg1".to_string(), vec![0, 2, 4]);
+        measured_qubits_map.insert("reg2".to_string(), vec![1, 2]);
         let mut output_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        output_registers.insert("reg1".to_string(), vec![
-            vec![false, false, true, false, false],
-            vec![true, false, true, false, false],]);
-        output_registers.insert("reg2".to_string(), vec![
-            vec![false, true, true],
-            vec![false, true, false],]);
+        output_registers.insert(
+            "reg1".to_string(),
+            vec![
+                vec![false, false, true, false, false],
+                vec![true, false, true, false, false],
+            ],
+        );
+        output_registers.insert(
+            "reg2".to_string(),
+            vec![vec![false, true, true], vec![false, true, false]],
+        );
 
         _results_to_registers(iqm_results, measured_qubits_map, &mut bit_registers).unwrap();
         assert_eq!(bit_registers, output_registers);
