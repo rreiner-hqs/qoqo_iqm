@@ -465,3 +465,47 @@ impl EvaluatingBackend for Backend {
         Ok((bit_registers, float_registers, complex_registers))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_qubit_name_conversion_iqm_to_qoqo() {
+        let qubit = String::from("QB2");
+        let converted_name = _convert_qubit_name_iqm_to_qoqo(qubit);
+
+        assert_eq!(converted_name, 1)
+    }
+
+    #[test]
+    fn test_results_to_registers() {
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        bit_registers.insert("reg1".to_string(), vec![
+            vec![false, false, false, false, false],
+            vec![false, false, false, false, false],]);
+        bit_registers.insert("reg2".to_string(), vec![
+            vec![false, false, false],
+            vec![false, false, false],]);
+        let mut iqm_results = HashMap::new();
+        iqm_results.insert("reg1".to_string(), vec![
+            vec![0, 1, 0],
+            vec![1, 1, 0],]);
+        iqm_results.insert("reg2".to_string(), vec![
+            vec![1, 1],
+            vec![1, 0],]);
+        let mut measured_qubits_map = HashMap::new();
+        measured_qubits_map.insert("reg1".to_string(), vec![0,2,4]);
+        measured_qubits_map.insert("reg2".to_string(), vec![1,2]);
+        let mut output_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        output_registers.insert("reg1".to_string(), vec![
+            vec![false, false, true, false, false],
+            vec![true, false, true, false, false],]);
+        output_registers.insert("reg2".to_string(), vec![
+            vec![false, true, true],
+            vec![false, true, false],]);
+
+        _results_to_registers(iqm_results, measured_qubits_map, &mut bit_registers).unwrap();
+        assert_eq!(bit_registers, output_registers);
+    }
+}
