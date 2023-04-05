@@ -34,6 +34,30 @@ fn init_backend() {
 }
 
 #[test]
+fn test_register_initialization() {
+    if env::var("IQM_TOKENS_FILE").is_ok() {
+        let device = DemoDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+
+        let mut qc = Circuit::new();
+        qc += ControlledPauliZ::new(0, 2);
+        qc += DefinitionBit::new("my_reg1".to_string(), 5, true);
+        qc += DefinitionBit::new("my_reg2".to_string(), 7, true);
+        qc += MeasureQubit::new(2, "my_reg1".to_string(), 2);
+
+        let (bit_registers, _float_registers, _complex_registers) =
+            backend.run_circuit(&qc).unwrap();
+
+        let reg2_result = bit_registers.get("my_reg2").unwrap();
+        let expected_output = vec![vec![false; 7]];
+
+        assert_eq!(*reg2_result, expected_output);
+    } else {
+        eprintln!("no IQM_TOKENS_FILE env var found.")
+    }
+}
+
+#[test]
 fn run_circuit_single_measurements() {
     if env::var("IQM_TOKENS_FILE").is_ok() {
         let device = DemoDevice::new();
@@ -43,8 +67,8 @@ fn run_circuit_single_measurements() {
         qc += ControlledPauliZ::new(0, 2);
         qc += ControlledPauliZ::new(3, 2);
         qc += RotateXY::new(2, 1.0.into(), 1.0.into());
-        qc += DefinitionBit::new("my_reg1".to_string(), 4, true);
-        qc += DefinitionBit::new("my_reg2".to_string(), 2, true);
+        qc += DefinitionBit::new("my_reg1".to_string(), 5, true);
+        qc += DefinitionBit::new("my_reg2".to_string(), 7, true);
         qc += MeasureQubit::new(2, "my_reg1".to_string(), 2);
         qc += MeasureQubit::new(3, "my_reg1".to_string(), 3);
         qc += MeasureQubit::new(1, "my_reg2".to_string(), 1);
@@ -53,23 +77,14 @@ fn run_circuit_single_measurements() {
             backend.run_circuit(&qc).unwrap();
         assert!(bit_registers.contains_key("my_reg1"));
         assert!(bit_registers.contains_key("my_reg2"));
-
-        // NOTE
-        // For now, only the entries of the output registers that are written on are present in the
-        // output registers returned by the backend. In this example, the length of my_reg1 should
-        // be 2 because there are only two single-qubit measurements that actually write on this
-        // register (even though the register is defined by DefinitionBit as having 4 entries).
-        // This could change when we introduce pairings between qubit numbers and positions in the
-        // output registers in the backend.
-        let out_reg = bit_registers.get("my_reg1").unwrap();
-        assert_eq!(out_reg[0].len(), 2);
-        let out_reg = bit_registers.get("my_reg2").unwrap();
-        assert_eq!(out_reg[0].len(), 1);
+    } else {
+        eprintln!("no IQM_TOKENS_FILE env var found.")
     }
 }
 
+// Test a deterministic circuit with repeated measurements
+// Ignore because the Demo backend returns pseudorandom results and does not implement a simulator
 #[test]
-#[ignore]
 fn run_circuit_repeated_measurements() {
     if env::var("IQM_TOKENS_FILE").is_ok() {
         let device = DemoDevice::new();
@@ -83,11 +98,14 @@ fn run_circuit_repeated_measurements() {
 
         let (bit_registers, _float_registers, _complex_registers) =
             backend.run_circuit(&qc).unwrap();
-        let out_reg = bit_registers.get("my_reg").unwrap();
-        let expected_output = vec![vec![true, false, false, false, false]; 10];
+        // Expected output if the backend had a simulator
+        // let expected_output = vec![vec![true, false, false, false, false]; 10];
 
         assert!(bit_registers.contains_key("my_reg"));
-        assert_eq!(*out_reg, expected_output);
+        let shots_in_results = bit_registers.get("my_reg").unwrap().len();
+        assert_eq!(shots_in_results, 10)
+    } else {
+        eprintln!("no IQM_TOKENS_FILE env var found.")
     }
 }
 

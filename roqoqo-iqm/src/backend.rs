@@ -33,21 +33,47 @@ const TIMEOUT_SECS: f64 = 60.0;
 const SECONDS_BETWEEN_CALLS: f64 = 1.0;
 
 #[inline]
-fn _u16_to_bool_vecs(v: &[Vec<u16>]) -> Vec<Vec<bool>> {
-    v.iter()
-        .map(|inner_v| inner_v.iter().map(|&x| x != 0).collect())
-        .collect()
+fn _convert_qubit_name_iqm_to_qoqo(name: String) -> usize {
+    let qubit_number = name
+        .chars()
+        .last()
+        .expect("Passed empty qubit name string to conversion function.")
+        .to_digit(10)
+        .expect("Last digit of qubit name in the IQM format should be a number.");
+
+    qubit_number as usize - 1
 }
 
 type IqmMeasurementResult = HashMap<String, Vec<Vec<u16>>>;
 
+// Helper function to convert the IQM result format into the classical register format used by
+// Roqoqo. This involved changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
+// the classical output registers which have been initialized with only `false` entries.
 #[inline]
-fn _results_to_registers(r: IqmMeasurementResult) -> HashMap<String, BitOutputRegister> {
-    let mut bit_reg: HashMap<String, BitOutputRegister> = HashMap::new();
-    for (key, value) in r.iter() {
-        bit_reg.insert(String::from(key), _u16_to_bool_vecs(value));
+fn _results_to_registers(
+    r: IqmMeasurementResult,
+    measured_qubits_map: HashMap<String, Vec<usize>>,
+    output_registers: &mut HashMap<String, BitOutputRegister>,
+) -> Result<(), RoqoqoBackendError> {
+    for (reg, reg_result) in r.iter() {
+        let measured_qubits = match measured_qubits_map.get(reg) {
+            Some(x) => x,
+            None => return Err(RoqoqoBackendError::GenericError {
+                msg: "Backend results contain registers that are not present in the measured_qubits_map.".to_string() })
+        };
+        let output_values = match output_registers.get_mut(reg) {
+            Some(x) => x,
+            None => return Err(RoqoqoBackendError::GenericError {
+                msg: "Backend results contain registers that are not present in the BitRegisters initialized by the Definition operations.".to_string() })
+        };
+
+        for (i, shot_result) in reg_result.iter().enumerate() {
+            for (j, qubit) in measured_qubits.iter().enumerate() {
+                output_values[i][*qubit] ^= shot_result[j] != 0
+            }
+        }
     }
-    bit_reg
+    Ok(())
 }
 
 #[inline]
@@ -403,8 +429,12 @@ impl EvaluatingBackend for Backend {
         &self,
         circuit: impl Iterator<Item = &'a Operation>,
     ) -> RegisterResult {
-        let (iqm_circuit, number_measurements) =
-            call_circuit(circuit, self.device.number_qubits())?;
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+
+        let (iqm_circuit, register_mapping, number_measurements) =
+            call_circuit(circuit, self.device.number_qubits(), &mut bit_registers)?;
 
         let data = IqmRunData {
             circuits: vec![iqm_circuit],
@@ -436,11 +466,59 @@ impl EvaluatingBackend for Backend {
             .id;
 
         let result_map: IqmMeasurementResult = self.wait_for_results(job_id)?;
-        // convert 1 and 0 (IQM) into true and false (qoqo)
-        let bit_registers = _results_to_registers(result_map);
-        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
-        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+
+        _results_to_registers(result_map, register_mapping, &mut bit_registers)?;
 
         Ok((bit_registers, float_registers, complex_registers))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_qubit_name_conversion_iqm_to_qoqo() {
+        let qubit = String::from("QB2");
+        let converted_name = _convert_qubit_name_iqm_to_qoqo(qubit);
+
+        assert_eq!(converted_name, 1)
+    }
+
+    #[test]
+    fn test_results_to_registers() {
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        bit_registers.insert(
+            "reg1".to_string(),
+            vec![
+                vec![false, false, false, false, false],
+                vec![false, false, false, false, false],
+            ],
+        );
+        bit_registers.insert(
+            "reg2".to_string(),
+            vec![vec![false, false, false], vec![false, false, false]],
+        );
+        let mut iqm_results = HashMap::new();
+        iqm_results.insert("reg1".to_string(), vec![vec![0, 1, 0], vec![1, 1, 0]]);
+        iqm_results.insert("reg2".to_string(), vec![vec![1, 1], vec![1, 0]]);
+        let mut measured_qubits_map = HashMap::new();
+        measured_qubits_map.insert("reg1".to_string(), vec![0, 2, 4]);
+        measured_qubits_map.insert("reg2".to_string(), vec![1, 2]);
+        let mut output_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        output_registers.insert(
+            "reg1".to_string(),
+            vec![
+                vec![false, false, true, false, false],
+                vec![true, false, true, false, false],
+            ],
+        );
+        output_registers.insert(
+            "reg2".to_string(),
+            vec![vec![false, true, true], vec![false, true, false]],
+        );
+
+        _results_to_registers(iqm_results, measured_qubits_map, &mut bit_registers).unwrap();
+        assert_eq!(bit_registers, output_registers);
     }
 }

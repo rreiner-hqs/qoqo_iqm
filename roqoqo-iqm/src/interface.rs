@@ -10,17 +10,19 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use qoqo_calculator::CalculatorFloat;
 use roqoqo::operations::*;
+use roqoqo::registers::BitOutputRegister;
 use roqoqo::RoqoqoBackendError;
 
 /// Convert a qubit number into the format accepted by IQM.
 // e.g. "QB2" for qoqo_qubit number 1 (IQM qubits start from 1)
 #[inline]
-fn _convert_qubit_name(qoqo_qubit: usize) -> String {
+fn _convert_qubit_name_qoqo_to_iqm(qoqo_qubit: usize) -> String {
     format!("QB{}", qoqo_qubit + 1)
 }
 
@@ -61,6 +63,9 @@ pub struct IqmInstruction {
     pub args: HashMap<String, CalculatorFloat>,
 }
 
+// HashMap that to each register name associates the indices in the register that are being affected by measurements. These indices are saved in the order in which the measurement operations appear in the circuit, since this is the order in which the backend returns the results.
+type RegisterMapping = HashMap<String, Vec<usize>>;
+
 /// Converts all operations in a [roqoqo::Circuit] into instructions for IQM Hardware or IQM Simulators
 ///
 /// # Arguments
@@ -70,26 +75,42 @@ pub struct IqmInstruction {
 /// `device_number_qubits` - The number of qubits of the backend device. It is used to know how many
 ///  qubits to measure with [roqoqo::operations::PragmaRepeatedMeasurement]
 ///
+/// `output_registers` - A mutable reference to the classical registers that need to be initialized
+///
 /// # Returns
 ///
-/// `Ok(IqmCircuit)` - Converted circuit `Err(RoqoqoBackendError::OperationNotInBackend)` - Error
-/// when [roqoqo::operations::Operation] can not be converted
+/// `Ok(IqmCircuit, RegisterMapping, usize)` - Converted circuit, mapping of measured qubits to register indices, and number of measurements
+/// `Err(RoqoqoBackendError::OperationNotInBackend)` - Error when [roqoqo::operations::Operation] can not be converted
 pub fn call_circuit<'a>(
     circuit: impl Iterator<Item = &'a Operation>,
     device_number_qubits: usize,
-) -> Result<(IqmCircuit, usize), RoqoqoBackendError> {
+    output_registers: &mut HashMap<String, BitOutputRegister>,
+) -> Result<(IqmCircuit, RegisterMapping, usize), RoqoqoBackendError> {
     let mut circuit_vec: Vec<IqmInstruction> = Vec::new();
     let mut number_measurements: usize = 1;
+    let mut register_mapping: RegisterMapping = HashMap::new();
 
     for op in circuit {
         match op {
-            // Do nothing with definitions of registers, since the name of the output register will
-            // be contained in the `args` field of the measurement instruction
-            Operation::DefinitionBit(_) => {}
-            Operation::DefinitionFloat(_) => {}
-            Operation::DefinitionComplex(_) => {}
+            Operation::DefinitionBit(o) => {
+                // initialize output registers with default `false` values
+                if *o.is_output() {
+                    output_registers
+                        .insert((*o).name().to_string(), vec![vec![false; *o.length()]]);
+                    register_mapping.insert((*o).name().to_string(), vec![]);
+                }
+            }
             Operation::MeasureQubit(o) => {
                 let readout = o.readout().clone();
+                match register_mapping.get_mut(&readout) {
+                    Some(x) => x.push(*o.readout_index()),
+                    None => {
+                        return Err(RoqoqoBackendError::GenericError {
+                            msg: "A MeasureQubit operation is writing to an undefined register."
+                                .to_string(),
+                        })
+                    }
+                }
                 let mut found: bool = false;
                 // Check if we already have a measurement to the same register
                 // if yes, add the qubit being measured to that measurement
@@ -102,19 +123,18 @@ pub fn call_circuit<'a>(
                             })?;
                         if let CalculatorFloat::Str(s) = meas_readout {
                             if s == &readout {
-                                i.qubits.push(_convert_qubit_name(*o.qubit()));
                                 found = true;
+                                i.qubits.push(_convert_qubit_name_qoqo_to_iqm(*o.qubit()));
                                 break;
                             }
                         }
                     }
                 }
                 if !found {
-                    // This is executed only if no measurement to the same register was found
-                    // In this case, a new IqmInstruction is created corresponding to the measurement
+                    // If no measurement to the same register was found, create a new IqmInstruction
                     let meas = IqmInstruction {
                         name: "measurement".to_string(),
-                        qubits: vec![_convert_qubit_name(*o.qubit())],
+                        qubits: vec![_convert_qubit_name_qoqo_to_iqm(*o.qubit())],
                         args: HashMap::from([("key".to_string(), CalculatorFloat::Str(readout))]),
                     };
                     circuit_vec.push(meas)
@@ -124,6 +144,38 @@ pub fn call_circuit<'a>(
                 number_measurements = *o.number_measurements();
                 let readout = o.readout().clone();
 
+                match o.qubit_mapping() {
+                    None => {
+                        if output_registers.contains_key(&readout) {
+                            let readout_length = match output_registers
+                                .get(&readout)
+                                .expect("Tried to access a register that is not a key of output_registers.")
+                                .first() {
+                                    Some(v) => v.len(),
+                                    None => return Err(RoqoqoBackendError::GenericError {
+                                        msg: format!("Output register {} has not been initialized correctly.", &readout) })
+                                };
+                            register_mapping.insert(
+                                o.readout().to_string(),
+                                (0..readout_length).collect(),
+                            );
+                        } else {
+                            return Err(RoqoqoBackendError::GenericError {
+                                msg: "A PragmaRepeatedMeasurement operation is writing to an undefined register.".to_string() })
+                        }
+                    }
+                    Some(map) => {
+                        match register_mapping.get_mut(o.readout()) {
+                            Some(x) => {
+                                for qubit in map.keys().sorted() {
+                                    x.push(map[qubit])
+                                }},
+                            None => return Err(RoqoqoBackendError::GenericError {
+                                msg: "A PragmaRepeatedMeasurement operation is writing to an undefined register.".to_string() })
+                        }
+                    }
+                }
+
                 let measure_all = IqmInstruction {
                     name: "measurement".to_string(),
                     qubits: _convert_all_qubit_names(device_number_qubits),
@@ -132,7 +184,6 @@ pub fn call_circuit<'a>(
                 circuit_vec.push(measure_all);
             }
             Operation::PragmaLoop(o) => {
-                // do some type conversion to get the number of repetitions as usize
                 let reps_ref =
                     o.repetitions()
                         .float()
@@ -144,7 +195,6 @@ pub fn call_circuit<'a>(
                     }
                         })?;
                 let reps = (*reps_ref) as i32;
-                // add the inner circuit for the specified number of repetitions
                 for _ in 0..reps {
                     for i in o.circuit().iter() {
                         let instruction = call_operation(i)?;
@@ -159,8 +209,14 @@ pub fn call_circuit<'a>(
         };
     }
 
+    if number_measurements > 1 {
+        for (_, value) in output_registers.iter_mut() {
+            *value = vec![(*value)[0].to_vec(); number_measurements];
+        }
+    }
+
     let iqm_circuit = IqmCircuit {
-        // TODO
+        // NOTE
         // circuits have to be given different names when support for circuit batches is added
         // Since for the moment we only support submission of a single circuit, the name is
         // irrelevant and is hardcoded
@@ -168,7 +224,7 @@ pub fn call_circuit<'a>(
         instructions: circuit_vec,
     };
 
-    Ok((iqm_circuit, number_measurements))
+    Ok((iqm_circuit, register_mapping, number_measurements))
 }
 
 /// Converts a [roqoqo::operations::Operation] into a native instruction for IQM Hardware
@@ -197,13 +253,13 @@ pub fn call_operation(operation: &Operation) -> Result<IqmInstruction, RoqoqoBac
 
             Ok(IqmInstruction {
                 name: "phased_rx".to_string(),
-                qubits: vec![_convert_qubit_name(*op.qubit())],
+                qubits: vec![_convert_qubit_name_qoqo_to_iqm(*op.qubit())],
                 args: op_parameters,
             })
         }
         Operation::ControlledPauliZ(op) => {
-            let control = _convert_qubit_name(*op.control());
-            let target = _convert_qubit_name(*op.target());
+            let control = _convert_qubit_name_qoqo_to_iqm(*op.control());
+            let target = _convert_qubit_name_qoqo_to_iqm(*op.target());
 
             Ok(IqmInstruction {
                 name: "cz".to_string(),
