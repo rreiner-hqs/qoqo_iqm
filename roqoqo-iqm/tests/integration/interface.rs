@@ -148,3 +148,17 @@ fn test_call_circuit_single_measurement() {
 
     assert_eq!(res, res_expected)
 }
+
+#[test]
+fn test_call_circuit_repeated_measurements_with_mappping() {
+    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+    let mut circuit = Circuit::new();
+    circuit += operations::ControlledPauliZ::new(0, 1);
+    circuit += operations::RotateXY::new(0, 1.0.into(), 1.0.into());
+    circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
+    let qubit_mapping = HashMap::from([(0, 1), (1, 0)]);
+    circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, Some(qubit_mapping));
+    let ok = call_circuit(circuit.iter(), 2, &mut bit_registers).is_ok();
+
+    assert!(ok);
+}

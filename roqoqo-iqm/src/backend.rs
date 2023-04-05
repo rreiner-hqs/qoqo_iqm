@@ -55,7 +55,6 @@ fn _results_to_registers(
     measured_qubits_map: HashMap<String, Vec<usize>>,
     output_registers: &mut HashMap<String, BitOutputRegister>,
 ) -> Result<(), RoqoqoBackendError> {
-    eprintln!("{:?}", measured_qubits_map.clone());
     for (reg, reg_result) in r.iter() {
         let measured_qubits = match measured_qubits_map.get(reg) {
             Some(x) => x,
@@ -70,12 +69,10 @@ fn _results_to_registers(
 
         for (i, shot_result) in reg_result.iter().enumerate() {
             for (j, qubit) in measured_qubits.iter().enumerate() {
-                eprintln!("{}", *qubit);
                 output_values[i][*qubit] ^= shot_result[j] != 0
             }
         }
     }
-
     Ok(())
 }
 

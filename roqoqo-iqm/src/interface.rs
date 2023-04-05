@@ -147,10 +147,14 @@ pub fn call_circuit<'a>(
                 match o.qubit_mapping() {
                     None => {
                         if output_registers.contains_key(&readout) {
-                            let readout_length = output_registers
+                            let readout_length = match output_registers
                                 .get(&readout)
-                                .unwrap()[0]
-                                .len();
+                                .expect("Tried to access a register that is not a key of output_registers.")
+                                .first() {
+                                    Some(v) => v.len(),
+                                    None => return Err(RoqoqoBackendError::GenericError {
+                                        msg: format!("Output register {} has not been initialized correctly.", &readout) })
+                                };
                             register_mapping.insert(
                                 o.readout().to_string(),
                                 (0..readout_length).collect(),
@@ -180,7 +184,6 @@ pub fn call_circuit<'a>(
                 circuit_vec.push(measure_all);
             }
             Operation::PragmaLoop(o) => {
-                // do some type conversion to get the number of repetitions as usize
                 let reps_ref =
                     o.repetitions()
                         .float()
