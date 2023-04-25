@@ -23,7 +23,7 @@ use roqoqo_iqm::devices::DemoDevice;
 ///
 /// Provides endpoint that receives instructions to test the IQM REST API and returns pseudorandom numbers.
 #[pyclass(name = "DemoDevice", module = "qoqo_iqm")]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct DemoDeviceWrapper {
     /// Internal storage of [roqoqo_iqm::DemoDevice]
     pub internal: DemoDevice,
@@ -145,7 +145,7 @@ impl DemoDeviceWrapper {
     ///     str: The URL of the remote host executing the Circuits.
     ///
     pub fn remote_host(&self) -> String {
-        self.internal.remote_host().to_string()
+        self.internal.remote_host()
     }
 
     /// Return the list of pairs of qubits linked by a native two-qubit-gate in the device.
@@ -206,13 +206,5 @@ impl DemoDeviceWrapper {
         self.internal
             .multi_qubit_gate_time(hqslang, &qubits)
             .ok_or_else(|| PyValueError::new_err("The gate is not available on the device."))
-    }
-}
-
-impl Default for DemoDeviceWrapper {
-    fn default() -> Self {
-        Self {
-            internal: DemoDevice::default(),
-        }
     }
 }
