@@ -872,7 +872,7 @@ dependencies = [
 
 [[package]]
 name = "qoqo-iqm"
-version = "0.6.1"
+version = "0.1.0"
 dependencies = [
  "bincode",
  "pyo3",

@@ -69,9 +69,9 @@ impl DemoDeviceWrapper {
 impl DemoDeviceWrapper {
     /// Create new simulator device.
     #[new]
-    pub fn new() -> Self {
+    pub fn new(endpoint_url: String, number_qubits: usize) -> Self {
         Self {
-            internal: DemoDevice::new(),
+            internal: DemoDevice::new(endpoint_url, number_qubits),
         }
     }
 
@@ -211,6 +211,8 @@ impl DemoDeviceWrapper {
 
 impl Default for DemoDeviceWrapper {
     fn default() -> Self {
-        Self::new()
+        Self {
+            internal: DemoDevice::default(),
+        }
     }
 }
