@@ -31,7 +31,7 @@ pub enum IqmDevice {
 
 impl IqmDevice {
     /// Returns the remote_host url endpoint of the device
-    pub fn remote_host(&self) -> &str {
+    pub fn remote_host(&self) -> String {
         match self {
             IqmDevice::DemoDevice(x) => x.remote_host(),
         }

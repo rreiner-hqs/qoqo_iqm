@@ -19,16 +19,27 @@ use std::cmp::{max, min};
 /// Provides endpoint that receives instructions and returns simulated results.
 /// Results are pseudo-random numbers, not actual quantum simulations.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DemoDevice;
+pub struct DemoDevice {
+    url: String,
+    number_qubits: usize,
+}
 
 impl DemoDevice {
     /// Create new DemoDevice
-    pub fn new() -> Self {
-        Self {}
+    ///
+    /// # Arguments
+    ///
+    /// * `endpoint_url` - The address of the REST API endpoint for the device
+    /// * `number_qubits` - The number of qubits of the device
+    pub fn new(endpoint_url: String, number_qubits: usize) -> Self {
+        Self {
+            url: endpoint_url,
+            number_qubits,
+        }
     }
     /// Returns the remote_host url endpoint of the device.
-    pub fn remote_host(&self) -> &str {
-        "https://demo.qc.iqm.fi/cocos/jobs"
+    pub fn remote_host(&self) -> String {
+        self.url.clone()
     }
 }
 
@@ -149,7 +160,7 @@ impl Device for DemoDevice {
     /// The number of qubits in the device.
     ///
     fn number_qubits(&self) -> usize {
-        5
+        self.number_qubits
     }
 
     /// Returns the list of pairs of qubits linked with a native two-qubit-gate in the device.
@@ -223,6 +234,6 @@ impl Device for DemoDevice {
 
 impl Default for DemoDevice {
     fn default() -> Self {
-        Self::new()
+        Self::new("https://demo.qc.iqm.fi/cocos/jobs".into(), 5)
     }
 }

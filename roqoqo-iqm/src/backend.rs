@@ -345,7 +345,7 @@ impl Backend {
                 msg: format!("could not create https client {:?}", x),
             })?;
 
-        let job_url = self.device.remote_host().to_owned() + "/" + id;
+        let job_url = self.device.remote_host() + "/" + id;
 
         let result = client
             .get(job_url)
