@@ -25,21 +25,26 @@ pub struct DemoDevice {
 }
 
 impl DemoDevice {
-    /// Create new DemoDevice
+    /// Create new DemoDevice with default settings.
+    pub fn new() -> Self {
+        Self {
+            url: "https://demo.qc.iqm.fi/cocos/jobs".to_string(),
+            number_qubits: 5,
+        }
+    }
+
+    /// Returns API endpoint URL of the device.
+    pub fn remote_host(&self) -> String {
+        self.url.clone()
+    }
+
+    /// Change API endpoint URL of the device
     ///
     /// # Arguments
     ///
-    /// * `endpoint_url` - The address of the REST API endpoint for the device
-    /// * `number_qubits` - The number of qubits of the device
-    pub fn new(endpoint_url: String, number_qubits: usize) -> Self {
-        Self {
-            url: endpoint_url,
-            number_qubits,
-        }
-    }
-    /// Returns the remote_host url endpoint of the device.
-    pub fn remote_host(&self) -> String {
-        self.url.clone()
+    /// `new_url` - The new URL to set.
+    pub fn set_endpoint_url(&mut self, new_url: String) {
+        self.url = new_url
     }
 }
 
@@ -234,6 +239,6 @@ impl Device for DemoDevice {
 
 impl Default for DemoDevice {
     fn default() -> Self {
-        Self::new("https://demo.qc.iqm.fi/cocos/jobs".into(), 5)
+        Self::new()
     }
 }

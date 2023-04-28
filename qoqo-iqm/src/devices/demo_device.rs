@@ -69,10 +69,19 @@ impl DemoDeviceWrapper {
 impl DemoDeviceWrapper {
     /// Create new simulator device.
     #[new]
-    pub fn new(endpoint_url: String, number_qubits: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            internal: DemoDevice::new(endpoint_url, number_qubits),
+            internal: DemoDevice::new(),
         }
+    }
+
+    /// Change API endpoint URL of the device
+    ///
+    /// # Arguments
+    ///
+    /// `new_url` - The new URL to set.
+    pub fn set_endpoint_url(&mut self, new_url: String) {
+        self.internal.set_endpoint_url(new_url)
     }
 
     /// Return a copy of the DemoDevice (copy here produces a deepcopy).
