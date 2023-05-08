@@ -21,7 +21,6 @@ use std::cmp::{max, min};
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DemoDevice {
     url: String,
-    number_qubits: usize,
 }
 
 impl DemoDevice {
@@ -29,7 +28,6 @@ impl DemoDevice {
     pub fn new() -> Self {
         Self {
             url: "https://demo.qc.iqm.fi/cocos/jobs".to_string(),
-            number_qubits: 5,
         }
     }
 
@@ -165,7 +163,7 @@ impl Device for DemoDevice {
     /// The number of qubits in the device.
     ///
     fn number_qubits(&self) -> usize {
-        self.number_qubits
+        5
     }
 
     /// Returns the list of pairs of qubits linked with a native two-qubit-gate in the device.
