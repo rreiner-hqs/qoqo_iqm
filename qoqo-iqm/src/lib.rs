@@ -26,6 +26,7 @@ pub use backend::BackendWrapper;
 #[pymodule]
 fn qoqo_iqm(_py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<BackendWrapper>()?;
+    module.add_class::<DemoDeviceWrapper>()?;
 
     let wrapper = wrap_pymodule!(devices::iqm_devices);
     module.add_wrapped(wrapper)?;

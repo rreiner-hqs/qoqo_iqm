@@ -6,6 +6,7 @@ dependencies = [
   'qoqo_calculator_pyo3>=1.1',
   'qoqo>=1.4',
 ]
+description = "IQM-backend for the qoqo/roqoqo quantum toolkit by HQS Quantum Simulations."
 
 license = {text="Apache-2.0 AND Apache-2.0 with LLVM-exception AND MIT AND Unicode-DFS-2016 AND BSD-2-Clause AND BSD-3-CLause"}
 maintainers = [{name = "HQS Quantum Simulations GmbH", email = "info@quantumsimulations.de"}]
