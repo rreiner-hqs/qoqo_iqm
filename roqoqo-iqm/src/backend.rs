@@ -192,6 +192,8 @@ pub struct Backend {
     pub device: IqmDevice,
     /// OAuth access token for authentication
     access_token: String,
+    /// Number of measurements
+    pub number_measurements_internal: Option<usize>,
 }
 
 impl Backend {
@@ -226,7 +228,18 @@ impl Backend {
         Ok(Self {
             device,
             access_token: access_token_internal,
+            number_measurements_internal: None,
         })
+    }
+
+    /// Overwrite the number of measurements that will be executed on the [roqoqo::Circuit] or the
+    /// [roqoqo::QuantumProgram]. The default number of measurements is the one defined in the submitted
+    /// circuits.
+    ///
+    /// WARNING: this function will overwrite the number of measurements set in a Circuit or
+    /// QuantumProgram. Changing the number of measurments WILL change the accuracy of the result.
+    pub fn _overwrite_number_of_measurements(&mut self, number_measurements: usize) {
+       self.number_measurements_internal = Some(number_measurements) 
     }
 
     /// Check if the circuit is well-defined according to the device specifications.
@@ -433,13 +446,17 @@ impl EvaluatingBackend for Backend {
         let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
         let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-        let (iqm_circuit, register_mapping, number_measurements) =
+        let (iqm_circuit, register_mapping, mut number_measurements) =
             call_circuit(circuit, self.device.number_qubits(), &mut bit_registers)?;
+
+        if let Some(n) = self.number_measurements_internal {
+            number_measurements = n
+        }
 
         let data = IqmRunData {
             circuits: vec![iqm_circuit],
             shots: number_measurements,
-        };
+        };            
 
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
