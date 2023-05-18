@@ -30,6 +30,8 @@ fn init_backend() {
         let device = DemoDevice::new();
         let ok = Backend::new(device.into(), Some("dummy_access_token".to_string())).is_ok();
         assert!(ok);
+    } else {
+        eprintln!("no IQM_TOKENS_FILE env var found.")
     }
 }
 
@@ -155,17 +157,21 @@ fn double_measurements() {
 
 #[test]
 fn test_overwrite_number_measurements() {
-    let mut qc = Circuit::new();
-    qc += ControlledPauliZ::new(0, 1);
-    qc += DefinitionBit::new("ro".to_string(), 2, true);
-    qc += PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
-    
-    let device = DemoDevice::new();
-    let mut backend = Backend::new(device.into(), None).unwrap();
+    if env::var("IQM_TOKENS_FILE").is_ok() {
+        let mut qc = Circuit::new();
+        qc += ControlledPauliZ::new(0, 1);
+        qc += DefinitionBit::new("ro".to_string(), 2, true);
+        qc += PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
 
-    assert!(backend.number_measurements_internal.is_none());
+        let device = DemoDevice::new();
+        let mut backend = Backend::new(device.into(), None).unwrap();
 
-    backend._overwrite_number_of_measurements(20);
+        assert!(backend.number_measurements_internal.is_none());
 
-    assert_eq!(backend.number_measurements_internal.unwrap(), 20);
+        backend._overwrite_number_of_measurements(20);
+
+        assert_eq!(backend.number_measurements_internal.unwrap(), 20);
+    } else {
+        eprintln!("no IQM_TOKENS_FILE env var found.")
+    }
 }
