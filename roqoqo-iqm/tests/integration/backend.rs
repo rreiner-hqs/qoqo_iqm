@@ -30,8 +30,6 @@ fn init_backend() {
         let device = DemoDevice::new();
         let ok = Backend::new(device.into(), Some("dummy_access_token".to_string())).is_ok();
         assert!(ok);
-    } else {
-        eprintln!("no IQM_TOKENS_FILE env var found.")
     }
 }
 
