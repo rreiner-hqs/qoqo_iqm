@@ -152,3 +152,24 @@ fn double_measurements() {
 
     let (_bit_registers, _float_registers, _complex_registers) = backend.run_circuit(&qc).unwrap();
 }
+
+#[test]
+fn test_overwrite_number_measurements() {
+    if env::var("IQM_TOKENS_FILE").is_ok() {
+        let mut qc = Circuit::new();
+        qc += ControlledPauliZ::new(0, 1);
+        qc += DefinitionBit::new("ro".to_string(), 2, true);
+        qc += PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
+
+        let device = DemoDevice::new();
+        let mut backend = Backend::new(device.into(), None).unwrap();
+
+        assert!(backend.number_measurements_internal.is_none());
+
+        backend._overwrite_number_of_measurements(20);
+
+        assert_eq!(backend.number_measurements_internal.unwrap(), 20);
+    } else {
+        eprintln!("no IQM_TOKENS_FILE env var found.")
+    }
+}
