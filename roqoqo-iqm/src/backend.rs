@@ -239,7 +239,7 @@ impl Backend {
     /// WARNING: this function will overwrite the number of measurements set in a Circuit or
     /// QuantumProgram. Changing the number of measurments WILL change the accuracy of the result.
     pub fn _overwrite_number_of_measurements(&mut self, number_measurements: usize) {
-       self.number_measurements_internal = Some(number_measurements) 
+        self.number_measurements_internal = Some(number_measurements)
     }
 
     /// Check if the circuit is well-defined according to the device specifications.
@@ -456,7 +456,7 @@ impl EvaluatingBackend for Backend {
         let data = IqmRunData {
             circuits: vec![iqm_circuit],
             shots: number_measurements,
-        };            
+        };
 
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
