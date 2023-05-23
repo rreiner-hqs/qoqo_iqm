@@ -453,7 +453,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-base64 0.21.0
+base64 0.21.1
 https://github.com/marshallpierce/rust-base64
 by Alice Maz <alice@alicemaz.com>, Marshall Pierce <marshall@mpierce.org>
 encodes and decodes base64 as bytes or utf8
@@ -964,7 +964,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-bumpalo 3.12.0
+bumpalo 3.13.0
 https://github.com/fitzgen/bumpalo
 by Nick Fitzgerald <fitzgen@gmail.com>
 A fast bump allocation arena for Rust.
@@ -2825,7 +2825,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ====================================================
-errno 0.3.0
+errno 0.3.1
 https://github.com/lambda-fairy/rust-errno
 by Chris Wong <lambda.fairy@gmail.com>
 Cross-platform interface to the `errno` variable.
@@ -5996,7 +5996,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-getrandom 0.2.8
+getrandom 0.2.9
 https://github.com/rust-random/getrandom
 by The Rand Project Developers
 A small cross-platform library for retrieving random data from system source
@@ -6238,7 +6238,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-h2 0.3.16
+h2 0.3.19
 https://github.com/hyperium/h2
 by Carl Lerche <me@carllerche.com>, Sean McArthur <sean@seanmonstar.com>
 An HTTP/2 client and server
@@ -7745,7 +7745,7 @@ THE SOFTWARE.
 
 
 ====================================================
-hyper 0.14.25
+hyper 0.14.26
 https://hyper.rs
 by Sean McArthur <sean@seanmonstar.com>
 A fast and correct HTTP library.
@@ -9886,7 +9886,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-js-sys 0.3.61
+js-sys 0.3.63
 https://rustwasm.github.io/wasm-bindgen/
 by The wasm-bindgen Developers
 Bindings for all JS global objects and functions in all JS environments like
@@ -10370,7 +10370,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-libc 0.2.141
+libc 0.2.144
 https://github.com/rust-lang/libc
 by The Rust Project Developers
 Raw FFI bindings to platform libraries like libc.
@@ -10587,7 +10587,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-libm 0.2.6
+libm 0.2.7
 https://github.com/rust-lang/libm
 by Jorge Aparicio <jorge@japaric.io>
 libm in pure Rust
@@ -10828,7 +10828,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-linux-raw-sys 0.3.1
+linux-raw-sys 0.3.8
 https://github.com/sunfishcode/linux-raw-sys
 by Dan Gohman <dev@sunfishcode.online>
 Generated bindings for Linux's userspace API
@@ -11774,7 +11774,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-matrixmultiply 0.3.2
+matrixmultiply 0.3.7
 https://github.com/bluss/matrixmultiply/
 by bluss, R. Janis Goldschmidt
 General matrix multiplication for f32 and f64 matrices. Operates on matrices with general layout (they can use arbitrary row and column stride). Detects and uses AVX or SSE2 on x86 platforms transparently for higher performance. Uses a microkernel strategy, so that the implementation is easy to parallelize and optimize.
@@ -11989,7 +11989,7 @@ limitations under the License.
 ----------------------------------------------------
 LICENSE-MIT:
 
-Copyright (c) 2016 - 2021 Ulrik Sverdrup "bluss"
+Copyright (c) 2016 - 2023 Ulrik Sverdrup "bluss"
 Copyirhgt (c) 2018 R. Janis Goldschmidt
 Copyright (c) 2021 DutchGhost [constparse.rs]
 
@@ -14554,7 +14554,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-openssl 0.10.49
+openssl 0.10.52
 https://github.com/sfackler/rust-openssl
 by Steven Fackler <sfackler@gmail.com>
 OpenSSL bindings
@@ -15057,7 +15057,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-openssl-src 111.25.2+1.1.1t
+openssl-src 111.25.3+1.1.1t
 https://github.com/alexcrichton/openssl-src-rs
 by Alex Crichton <alex@alexcrichton.com>
 Source of OpenSSL and logic to build it.
@@ -15299,7 +15299,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-openssl-sys 0.9.84
+openssl-sys 0.9.87
 https://github.com/sfackler/rust-openssl
 by Alex Crichton <alex@alexcrichton.com>, Steven Fackler <sfackler@gmail.com>
 FFI bindings to OpenSSL
@@ -16971,7 +16971,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-pkg-config 0.3.26
+pkg-config 0.3.27
 https://github.com/rust-lang/pkg-config-rs
 by Alex Crichton <alex@alexcrichton.com>
 A library to run the pkg-config system tool at build time in order to be used in
@@ -17929,7 +17929,7 @@ SOFTWARE.
 
 
 ====================================================
-proc-macro2 1.0.56
+proc-macro2 1.0.58
 https://github.com/dtolnay/proc-macro2
 by David Tolnay <dtolnay@gmail.com>, Alex Crichton <alex@alexcrichton.com>
 A substitute implementation of the compiler's `proc_macro` API to decouple token-based libraries from the procedural macro use case.
@@ -18143,7 +18143,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-pyo3 0.18.2
+pyo3 0.18.3
 https://github.com/pyo3/pyo3
 by PyO3 Project and Contributors <https://github.com/PyO3>
 Bindings to Python interpreter
@@ -18343,7 +18343,7 @@ LICENSE:
 
 
 ====================================================
-pyo3-build-config 0.18.2
+pyo3-build-config 0.18.3
 https://github.com/pyo3/pyo3
 by PyO3 Project and Contributors <https://github.com/PyO3>
 Build configuration for the PyO3 ecosystem
@@ -18543,7 +18543,7 @@ LICENSE:
 
 
 ====================================================
-pyo3-ffi 0.18.2
+pyo3-ffi 0.18.3
 https://github.com/pyo3/pyo3
 by PyO3 Project and Contributors <https://github.com/PyO3>
 Python-API bindings for the PyO3 ecosystem
@@ -19171,7 +19171,7 @@ docs/license.html_lib.
 
 
 ====================================================
-pyo3-macros 0.18.2
+pyo3-macros 0.18.3
 https://github.com/pyo3/pyo3
 by PyO3 Project and Contributors <https://github.com/PyO3>
 Proc macros for PyO3 package
@@ -19371,7 +19371,7 @@ LICENSE:
 
 
 ====================================================
-pyo3-macros-backend 0.18.2
+pyo3-macros-backend 0.18.3
 https://github.com/pyo3/pyo3
 by PyO3 Project and Contributors <https://github.com/PyO3>
 Code generation for PyO3 package
@@ -19571,7 +19571,7 @@ LICENSE:
 
 
 ====================================================
-qoqo 1.3.1
+qoqo 1.4.0
 https://github.com/HQSquantumsimulations/qoqo
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Quantum computing circuit toolkit. Python interface of roqoqo
@@ -19783,7 +19783,7 @@ LICENSE:
 
 
 ====================================================
-qoqo-iqm 0.6.1
+qoqo-iqm 0.6.3
 https://github.com/HQSquantumsimulations/qoqo_iqm
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM backend for qoqo quantum computing toolkit
@@ -19995,7 +19995,7 @@ LICENSE:
 
 
 ====================================================
-qoqo-macros 1.3.1
+qoqo-macros 1.4.0
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Macros for the qoqo crate
 License: Apache-2.0
@@ -20630,7 +20630,7 @@ LICENSE:
 
 
 ====================================================
-quote 1.0.26
+quote 1.0.27
 https://github.com/dtolnay/quote
 by David Tolnay <dtolnay@gmail.com>
 Quasi-quoting macro quote!(...)
@@ -22073,7 +22073,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-reqwest 0.11.16
+reqwest 0.11.18
 https://github.com/seanmonstar/reqwest
 by Sean McArthur <sean@seanmonstar.com>
 higher level HTTP client library
@@ -22309,7 +22309,7 @@ THE SOFTWARE.
 
 
 ====================================================
-roqoqo 1.3.1
+roqoqo 1.4.0
 https://github.com/HQSquantumsimulations/qoqo
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Rust Quantum Computing Toolkit by HQS
@@ -22521,7 +22521,7 @@ LICENSE:
 
 
 ====================================================
-roqoqo-derive 1.3.1
+roqoqo-derive 1.4.0
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Macros for the roqoqo crate
 License: Apache-2.0
@@ -22732,7 +22732,7 @@ LICENSE:
 
 
 ====================================================
-roqoqo-iqm 0.1.0
+roqoqo-iqm 0.6.3
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM interface for roqoqo rust quantum computing toolkit
 License: Apache-2.0
@@ -23182,7 +23182,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-rustix 0.37.7
+rustix 0.37.19
 https://github.com/bytecodealliance/rustix
 by Dan Gohman <dev@sunfishcode.online>, Jakub Konka <kubkon@jakubkonka.com>
 Safe Rust bindings to POSIX/Unix/Linux/Winsock2-like syscalls
@@ -24145,7 +24145,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-security-framework 2.8.2
+security-framework 2.9.1
 https://lib.rs/crates/security_framework
 by Steven Fackler <sfackler@gmail.com>, Kornel <kornel@geekhood.net>
 Security.framework bindings for macOS and iOS
@@ -24381,7 +24381,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-security-framework-sys 2.8.0
+security-framework-sys 2.9.0
 https://lib.rs/crates/security-framework-sys
 by Steven Fackler <sfackler@gmail.com>, Kornel <kornel@geekhood.net>
 Apple `Security.framework` low-level FFI bindings
@@ -24617,7 +24617,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-serde 1.0.159
+serde 1.0.163
 https://serde.rs
 by Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
 A generic serialization/deserialization framework
@@ -24831,7 +24831,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-serde_derive 1.0.159
+serde_derive 1.0.163
 https://serde.rs
 by Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
 Macros 1.1 implementation of #[derive(Serialize, Deserialize)]
@@ -25045,7 +25045,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-serde_json 1.0.95
+serde_json 1.0.96
 https://github.com/serde-rs/json
 by Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
 A JSON serialization file format
@@ -25475,7 +25475,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-simba 0.8.0
+simba 0.8.1
 https://github.com/dimforge/simba
 by sebcrozet <developer@crozet.re>
 SIMD algebra for Rust
@@ -26446,7 +26446,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-syn 2.0.13
+syn 2.0.16
 https://github.com/dtolnay/syn
 by David Tolnay <dtolnay@gmail.com>
 Parser for Rust source code
@@ -26660,7 +26660,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-target-lexicon 0.12.6
+target-lexicon 0.12.7
 https://github.com/bytecodealliance/target-lexicon
 by Dan Gohman <sunfish@mozilla.com>
 Targeting utilities for compilers and related tools
@@ -28155,7 +28155,7 @@ freely, subject to the following restrictions:
 
 
 ====================================================
-tokio 1.27.0
+tokio 1.28.1
 https://tokio.rs
 by Tokio Contributors <team@tokio.rs>
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
@@ -28231,7 +28231,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-tokio-util 0.7.7
+tokio-util 0.7.8
 https://tokio.rs
 by Tokio Contributors <team@tokio.rs>
 Additional utilities for working with Tokio.
@@ -28342,7 +28342,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-tracing-core 0.1.30
+tracing-core 0.1.31
 https://tokio.rs
 by Tokio Contributors <team@tokio.rs>
 Core primitives for application-level tracing.
@@ -30858,7 +30858,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-wasm-bindgen 0.2.84
+wasm-bindgen 0.2.86
 https://rustwasm.github.io/
 by The wasm-bindgen Developers
 Easy support for interacting between JS and Rust.
@@ -31100,7 +31100,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-wasm-bindgen-backend 0.2.84
+wasm-bindgen-backend 0.2.86
 https://rustwasm.github.io/wasm-bindgen/
 by The wasm-bindgen Developers
 Backend code generation of the wasm-bindgen tool
@@ -31342,7 +31342,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-wasm-bindgen-futures 0.4.34
+wasm-bindgen-futures 0.4.36
 https://rustwasm.github.io/wasm-bindgen/
 by The wasm-bindgen Developers
 Bridging the gap between Rust Futures and JavaScript Promises
@@ -31583,7 +31583,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-wasm-bindgen-macro 0.2.84
+wasm-bindgen-macro 0.2.86
 https://rustwasm.github.io/wasm-bindgen/
 by The wasm-bindgen Developers
 Definition of the `#[wasm_bindgen]` attribute, an internal dependency
@@ -31825,7 +31825,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-wasm-bindgen-macro-support 0.2.84
+wasm-bindgen-macro-support 0.2.86
 https://rustwasm.github.io/wasm-bindgen/
 by The wasm-bindgen Developers
 The part of the implementation of the `#[wasm_bindgen]` attribute that is not in the shared backend crate
@@ -32067,7 +32067,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-wasm-bindgen-shared 0.2.84
+wasm-bindgen-shared 0.2.86
 https://rustwasm.github.io/wasm-bindgen/
 by The wasm-bindgen Developers
 Shared support between wasm-bindgen and wasm-bindgen cli, an internal
@@ -32310,7 +32310,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-web-sys 0.3.61
+web-sys 0.3.63
 https://rustwasm.github.io/wasm-bindgen/web-sys/index.html
 by The wasm-bindgen Developers
 Bindings for all Web APIs, a procedurally generated crate from WebIDL
@@ -32552,7 +32552,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-wide 0.7.8
+wide 0.7.9
 https://github.com/Lokathor/wide
 by Lokathor <zefria@gmail.com>
 A crate to help you go wide.
