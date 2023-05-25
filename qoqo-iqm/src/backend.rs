@@ -101,6 +101,17 @@ impl BackendWrapper {
         })
     }
 
+    /// Overwrite the number of measurements that will be executed on the [qoqo::Circuit] or the
+    /// [qoqo::QuantumProgram]. The default number of measurements is the one defined in the submitted
+    /// circuits.
+    ///
+    /// WARNING: this function will overwrite the number of measurements set in a Circuit or
+    /// QuantumProgram. Changing the number of measurments WILL change the accuracy of the result.
+    pub fn _overwrite_number_of_measurements(&mut self, number_measurements: usize) {
+        self.internal
+            ._overwrite_number_of_measurements(number_measurements)
+    }
+
     /// Return a copy of the Backend (copy here produces a deepcopy).
     ///
     /// Returns:
