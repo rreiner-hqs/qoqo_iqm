@@ -116,11 +116,6 @@ pub fn call_circuit<'a>(
                 }
             }
             Operation::MeasureQubit(o) => {
-                if number_measurements > 1 {
-                    return Err(RoqoqoBackendError::GenericError {
-                        msg: "Single qubit measurements are not allowed after a repeated measurement operation.".to_string() });
-                }
-
                 let readout = o.readout().clone();
                 measured_qubits.push(*o.qubit());
 
@@ -146,7 +141,17 @@ pub fn call_circuit<'a>(
                         if let CalculatorFloat::Str(s) = meas_readout {
                             if s == &readout {
                                 found = true;
-                                i.qubits.push(_convert_qubit_name_qoqo_to_iqm(*o.qubit()));
+                                let iqm_qubit = _convert_qubit_name_qoqo_to_iqm(*o.qubit());
+                                if !i.qubits.contains(&iqm_qubit) {
+                                    i.qubits.push(iqm_qubit);
+                                } else {
+                                    return Err(RoqoqoBackendError::GenericError {
+                                        msg: format!(
+                                            "Qubit {} is being measured twice.",
+                                            *o.qubit()
+                                        ),
+                                    });
+                                }
                                 break;
                             }
                         }
