@@ -359,7 +359,7 @@ pub fn call_operation(operation: &Operation) -> Result<Option<IqmInstruction>, R
                 qubits: vec![_convert_qubit_name_qoqo_to_iqm(*op.qubit())],
                 args: op_parameters,
             }))
-        },
+        }
         Operation::ControlledPauliZ(op) => {
             let control = _convert_qubit_name_qoqo_to_iqm(*op.control());
             let target = _convert_qubit_name_qoqo_to_iqm(*op.target());
@@ -369,7 +369,7 @@ pub fn call_operation(operation: &Operation) -> Result<Option<IqmInstruction>, R
                 qubits: vec![control, target],
                 args: op_parameters,
             }))
-        },
+        }
         _ => {
             if ALLOWED_OPERATIONS.contains(&operation.hqslang()) {
                 Ok(None)
