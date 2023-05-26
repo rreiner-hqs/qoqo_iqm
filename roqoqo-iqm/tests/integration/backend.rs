@@ -191,9 +191,7 @@ fn test_overwrite_readout_register() {
         let (bit_registers, _float_registers, _complex_registers) =
             backend.run_circuit(&qc).unwrap();
 
-        let expected = vec![
-            vec![false; 5],
-            vec![false; 5]];
+        let expected = vec![vec![false; 5], vec![false; 5]];
         let result = bit_registers.get("ro2").unwrap();
         assert_eq!(expected, *result)
     } else {
