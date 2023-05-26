@@ -201,13 +201,11 @@ pub fn call_circuit<'a>(
                             msg: format!("PragmaSetNumberOfMeasurements writes to register {}, which is too small.", &readout) });
                     }
 
-                    // overwrite the readout registers of the MeasureQubit operations
+                    // remove MeasureQubit operations
                     let mut old_measurement_indices = vec![];
                     for (i, meas) in circuit_vec.iter().enumerate() {
-                        if let Some(CalculatorFloat::Str(x)) = meas.args.get("key") {
-                            if *x == readout {
-                                old_measurement_indices.push(i);
-                            }
+                        if meas.name == "measurement" {
+                            old_measurement_indices.push(i);
                         }
                     }
                     for i in old_measurement_indices.into_iter().rev() {
@@ -218,6 +216,7 @@ pub fn call_circuit<'a>(
                     register_mapping = HashMap::new();
                     register_mapping.insert(readout.clone(), measured_qubits.clone());
 
+                    // add single measurement instruction for all the qubits that were measured with MeasureQubit
                     let meas = IqmInstruction {
                         name: "measurement".to_string(),
                         qubits: measured_qubits
@@ -360,7 +359,7 @@ pub fn call_operation(operation: &Operation) -> Result<Option<IqmInstruction>, R
                 qubits: vec![_convert_qubit_name_qoqo_to_iqm(*op.qubit())],
                 args: op_parameters,
             }))
-        }
+        },
         Operation::ControlledPauliZ(op) => {
             let control = _convert_qubit_name_qoqo_to_iqm(*op.control());
             let target = _convert_qubit_name_qoqo_to_iqm(*op.target());
@@ -370,7 +369,7 @@ pub fn call_operation(operation: &Operation) -> Result<Option<IqmInstruction>, R
                 qubits: vec![control, target],
                 args: op_parameters,
             }))
-        }
+        },
         _ => {
             if ALLOWED_OPERATIONS.contains(&operation.hqslang()) {
                 Ok(None)
