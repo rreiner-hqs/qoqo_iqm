@@ -157,8 +157,8 @@ fn double_measurements() {
 fn test_overwrite_number_measurements() {
     if env::var("IQM_TOKENS_FILE").is_ok() {
         let mut qc = Circuit::new();
-        qc += ControlledPauliZ::new(0, 1);
-        qc += DefinitionBit::new("ro".to_string(), 2, true);
+        qc += ControlledPauliZ::new(0, 2);
+        qc += DefinitionBit::new("ro".to_string(), 3, true);
         qc += PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
 
         let device = DemoDevice::new();
@@ -169,6 +169,31 @@ fn test_overwrite_number_measurements() {
         backend._overwrite_number_of_measurements(20);
 
         assert_eq!(backend.number_measurements_internal.unwrap(), 20);
+    } else {
+        eprintln!("no IQM_TOKENS_FILE env var found.")
+    }
+}
+
+#[test]
+fn test_overwrite_readout_register() {
+    if env::var("IQM_TOKENS_FILE").is_ok() {
+        let mut qc = Circuit::new();
+        qc += ControlledPauliZ::new(0, 2);
+        qc += RotateXY::new(0, 1.0.into(), 1.0.into());
+        qc += DefinitionBit::new("ro1".to_string(), 2, true);
+        qc += DefinitionBit::new("ro2".to_string(), 5, true);
+        qc += MeasureQubit::new(0, "ro2".to_string(), 0);
+        qc += PragmaSetNumberOfMeasurements::new(2, "ro1".to_string());
+
+        let device = DemoDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+
+        let (bit_registers, _float_registers, _complex_registers) =
+            backend.run_circuit(&qc).unwrap();
+
+        let expected = vec![vec![false; 5], vec![false; 5]];
+        let result = bit_registers.get("ro2").unwrap();
+        assert_eq!(expected, *result)
     } else {
         eprintln!("no IQM_TOKENS_FILE env var found.")
     }

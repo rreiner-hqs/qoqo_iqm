@@ -453,7 +453,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-base64 0.21.1
+base64 0.21.2
 https://github.com/marshallpierce/rust-base64
 by Alice Maz <alice@alicemaz.com>, Marshall Pierce <marshall@mpierce.org>
 encodes and decodes base64 as bytes or utf8
@@ -8745,7 +8745,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 ====================================================
-io-lifetimes 1.0.10
+io-lifetimes 1.0.11
 https://github.com/sunfishcode/io-lifetimes
 by Dan Gohman <dev@sunfishcode.online>
 A low-level I/O ownership and borrowing library
@@ -19783,7 +19783,7 @@ LICENSE:
 
 
 ====================================================
-qoqo-iqm 0.6.3
+qoqo-iqm 0.6.4
 https://github.com/HQSquantumsimulations/qoqo_iqm
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM backend for qoqo quantum computing toolkit
@@ -22732,7 +22732,7 @@ LICENSE:
 
 
 ====================================================
-roqoqo-iqm 0.6.3
+roqoqo-iqm 0.6.4
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM interface for roqoqo rust quantum computing toolkit
 License: Apache-2.0
@@ -28895,7 +28895,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-unicode-ident 1.0.8
+unicode-ident 1.0.9
 https://github.com/dtolnay/unicode-ident
 by David Tolnay <dtolnay@gmail.com>
 Determine whether characters have the XID_Start or XID_Continue properties according to Unicode Standard Annex #31

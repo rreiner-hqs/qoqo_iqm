@@ -39,7 +39,7 @@ use test_case::test_case;
     };
     "Controlled Z")]
 fn test_passing_interface(operation: operations::Operation, instruction: IqmInstruction) {
-    let called = call_operation(&operation).unwrap();
+    let called = call_operation(&operation).unwrap().unwrap();
     assert_eq!(instruction, called);
 }
 
@@ -161,4 +161,30 @@ fn test_call_circuit_repeated_measurements_with_mappping() {
     let ok = call_circuit(circuit.iter(), 2, &mut bit_registers).is_ok();
 
     assert!(ok);
+}
+
+#[test]
+fn test_fail_multiple_repeated_measurements() {
+    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+    let mut circuit = Circuit::new();
+    circuit += operations::ControlledPauliZ::new(0, 1);
+    circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
+    circuit += operations::PragmaSetNumberOfMeasurements::new(5, "ro".to_string());
+    circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, None);
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers);
+
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_fail_overlapping_measurements() {
+    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+    let mut circuit = Circuit::new();
+    circuit += operations::ControlledPauliZ::new(0, 1);
+    circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
+    circuit += operations::MeasureQubit::new(0, "ro".to_string(), 0);
+    circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, None);
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers);
+
+    assert!(res.is_err());
 }
