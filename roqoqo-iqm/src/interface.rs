@@ -131,10 +131,13 @@ pub fn call_circuit<'a>(
                 let mut found: bool = false;
                 // Check if we already have a measurement to the same register
                 // if yes, add the qubit being measured to that measurement
-                for i in &mut circuit_vec {
-                    if i.name == "measurement" {
+                for instr in &mut circuit_vec {
+                    if instr.name == "measurement" {
                         let meas_readout =
-                            i.args.get("key").ok_or(RoqoqoBackendError::GenericError {
+                            instr
+                                .args
+                                .get("key")
+                                .ok_or(RoqoqoBackendError::GenericError {
                                 msg: "A measurement must contain a `key` entry in the `args` field"
                                     .to_string(),
                             })?;
@@ -142,8 +145,8 @@ pub fn call_circuit<'a>(
                             if s == &readout {
                                 found = true;
                                 let iqm_qubit = _convert_qubit_name_qoqo_to_iqm(*o.qubit());
-                                if !i.qubits.contains(&iqm_qubit) {
-                                    i.qubits.push(iqm_qubit);
+                                if !instr.qubits.contains(&iqm_qubit) {
+                                    instr.qubits.push(iqm_qubit);
                                 } else {
                                     return Err(RoqoqoBackendError::GenericError {
                                         msg: format!(
@@ -259,8 +262,7 @@ pub fn call_circuit<'a>(
                                     None => return Err(RoqoqoBackendError::GenericError {
                                         msg: format!("Output register {} has not been initialized correctly.", &readout) })
                                 };
-                            // TODO we should check that readout_length >= number_qubits_in_circuit here
-                            // Currently there is no simple way to obtain the number of qubits in the roqoqo circuit
+
                             register_mapping.insert(
                                 o.readout().to_string(),
                                 (0..readout_length).collect(),

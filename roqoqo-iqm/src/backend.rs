@@ -183,6 +183,19 @@ fn _get_token_from_env_var() -> Result<String, TokenError> {
     Ok(token.access_token)
 }
 
+// Helper function to get number of qubits in a qoqo Circuit
+fn _get_number_qubits(qc: &Circuit) -> Option<usize> {
+    let mut number_qubits_vec: Vec<usize> = vec![];
+    for op in qc.iter() {
+        if let InvolvedQubits::Set(s) = op.involved_qubits() {
+            if let Some(x) = s.iter().max() {
+                number_qubits_vec.push(*x)
+            }
+        }
+    }
+    number_qubits_vec.iter().max().map(|x| x + 1)
+}
+
 /// IQM backend
 ///
 /// Provides functions to run circuits and measurements on IQM devices.
@@ -249,26 +262,20 @@ impl Backend {
     /// `qc` - The [roqoqo::Circuit] to be checked
     pub fn validate_circuit(&self, qc: &Circuit) -> Result<(), RoqoqoBackendError> {
         // Check that the circuit doesn't contain more qubits than the device supports
-        let involved_qubits = qc.involved_qubits();
         let mut measured_qubits: Vec<usize> = vec![];
-
-        if let InvolvedQubits::Set(s) = involved_qubits {
-            for qb in s {
-                // equal is also a problem since qoqo starts numbering qubits from 0
-                if qb >= self.device.number_qubits() {
-                    return Err(RoqoqoBackendError::GenericError {
-                        msg: format!(
-                            "Circuit has more qubits than the selected backend device ({}).",
-                            self.device.number_qubits()
-                        ),
-                    });
-                }
+        let number_qubits = match _get_number_qubits(qc) {
+            Some(x) => x,
+            None => {
+                return Err(RoqoqoBackendError::GenericError {
+                    msg: format!("Empty circuit was passed to the backend."),
+                })
             }
-        }
+        };
 
         // Check that
         // 1) The circuit respects the device's connectivity
         // 2) Every qubit is only measured once
+        // 3) Output registers are large enough
         for op in qc.iter() {
             match op {
                 Operation::MeasureQubit(o) => {
@@ -281,7 +288,7 @@ impl Backend {
                         measured_qubits.push(qubit)
                     }
                 }
-                Operation::PragmaRepeatedMeasurement(_) => {
+                Operation::PragmaRepeatedMeasurement(o) => {
                     if !measured_qubits.is_empty() {
                         return Err(RoqoqoBackendError::GenericError {
                            msg: "Qubits are being measured more than once. When using
@@ -291,6 +298,19 @@ impl Backend {
                         });
                     } else {
                         measured_qubits.extend(0..self.device.number_qubits())
+                    }
+
+                    let mut readout_length: usize = 0;
+                    for def in qc.definitions() {
+                        if let Operation::DefinitionBit(reg) = def {
+                            readout_length = *reg.length()
+                        }
+                    }
+
+                    if number_qubits > readout_length {
+                        return Err(RoqoqoBackendError::GenericError {
+                            msg: format!("Readout register {} is not large enough.", o.readout()),
+                        });
                     }
                 }
                 _ => {
@@ -493,6 +513,7 @@ impl EvaluatingBackend for Backend {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::PI;
 
     #[test]
     fn test_qubit_name_conversion_iqm_to_qoqo() {
@@ -500,6 +521,21 @@ mod tests {
         let converted_name = _convert_qubit_name_iqm_to_qoqo(qubit);
 
         assert_eq!(converted_name, 1)
+    }
+
+    #[test]
+    fn test_get_number_qubits() {
+        let mut qc = Circuit::new();
+
+        assert!(_get_number_qubits(&qc).is_none());
+
+        qc += RotateXY::new(0, PI.into(), 0.0.into());
+        qc += RotateXY::new(2, PI.into(), 0.0.into());
+        qc += RotateXY::new(6, PI.into(), 0.0.into());
+        qc += DefinitionBit::new("my_reg".to_string(), 2, true);
+        qc += PragmaRepeatedMeasurement::new("my_reg".to_string(), 10, None);
+
+        assert_eq!(_get_number_qubits(&qc), Some(7))
     }
 
     #[test]
