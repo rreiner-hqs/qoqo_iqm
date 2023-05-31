@@ -267,7 +267,7 @@ impl Backend {
             Some(x) => x,
             None => {
                 return Err(RoqoqoBackendError::GenericError {
-                    msg: format!("Empty circuit was passed to the backend."),
+                    msg: "Empty circuit was passed to the backend.".to_string(),
                 })
             }
         };
