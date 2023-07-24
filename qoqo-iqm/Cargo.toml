@@ -1,6 +1,6 @@
 [package]
 name = "qoqo-iqm"
-version = "0.6.4"
+version = "0.6.5"
 authors = ["HQS Quantum Simulations <info@quantumsimulations.de>"]
 license = "Apache-2.0"
 homepage = "https://github.com/HQSquantumsimulations/qoqo_iqm"
@@ -27,11 +27,10 @@ features = ["num-complex"]
 
 [dependencies]
 roqoqo-iqm = {version="0.6", path="../roqoqo-iqm"}
-
 qoqo_calculator = {version="1.1"}
 qoqo_calculator_pyo3 = {version="1.1", default-features=false}
-qoqo = {version="1.4", default-features=false}
-roqoqo = {version="1.4"}
+qoqo = {version="1.5", default-features=false}
+roqoqo = {version="1.5"}
 
 serde = { version = "1.0", features = ["derive"] }
 bincode = "1.3"
