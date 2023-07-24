@@ -504,7 +504,7 @@ impl Backend {
                     &serde_json::from_str::<AbortResponse>(&resp.text().unwrap())
                         .unwrap()
                         .detail;
-                return Err(RoqoqoBackendError::GenericError {
+                Err(RoqoqoBackendError::GenericError {
                     msg: format!("Job abortion failed: {}", abort_failed_msg),
                 });
             }
