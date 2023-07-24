@@ -506,7 +506,7 @@ impl Backend {
                         .detail;
                 Err(RoqoqoBackendError::GenericError {
                     msg: format!("Job abortion failed: {}", abort_failed_msg),
-                });
+                })
             }
         }
     }
