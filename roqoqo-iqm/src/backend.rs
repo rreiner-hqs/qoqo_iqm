@@ -82,7 +82,10 @@ fn _construct_headers(token: &str) -> HeaderMap {
     // The purpose of this header is to allow the client to check if the server is ready to receive
     // the request before actually sending the request data.
     headers.insert("Expect", HeaderValue::from_str("100-Continue").unwrap());
-    headers.insert("User-Agent", HeaderValue::from_str("qoqo-iqm client").unwrap());
+    headers.insert(
+        "User-Agent",
+        HeaderValue::from_str("qoqo-iqm client").unwrap(),
+    );
     let token_header = &["Bearer", token].join(" ");
     headers.insert(
         "Authorization",
@@ -477,7 +480,6 @@ impl Backend {
     ///
     /// Err(RoqoqoBackendError) - If the job abortion failed.
     pub fn abort_job(&self, id: &str) -> Result<(), RoqoqoBackendError> {
-        
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
             .build()
@@ -498,10 +500,13 @@ impl Backend {
         match resp.status() {
             reqwest::StatusCode::OK => Ok(()),
             _ => {
-                let abort_failed_msg: &str = &serde_json::from_str::<AbortResponse>(&resp.text().unwrap())
-                    .unwrap()
-                    .detail;
-                return Err(RoqoqoBackendError::GenericError { msg: format!("Job abortion failed: {}", abort_failed_msg) })
+                let abort_failed_msg: &str =
+                    &serde_json::from_str::<AbortResponse>(&resp.text().unwrap())
+                        .unwrap()
+                        .detail;
+                return Err(RoqoqoBackendError::GenericError {
+                    msg: format!("Job abortion failed: {}", abort_failed_msg),
+                });
             }
         }
     }
