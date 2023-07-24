@@ -82,6 +82,7 @@ fn _construct_headers(token: &str) -> HeaderMap {
     // The purpose of this header is to allow the client to check if the server is ready to receive
     // the request before actually sending the request data.
     headers.insert("Expect", HeaderValue::from_str("100-Continue").unwrap());
+    headers.insert("User-Agent", HeaderValue::from_str("qoqo-iqm client").unwrap());
     let token_header = &["Bearer", token].join(" ");
     headers.insert(
         "Authorization",
@@ -100,12 +101,26 @@ struct IqmRunData {
     // qubit_mapping : Option<HashMap<String, String>>,
 }
 
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct ResponseBody {
+    id: String,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct AbortResponse {
+    detail: String,
+}
+
 #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "lowercase")]
 enum Status {
-    Pending,
+    #[serde(rename = "pending compilation")]
+    PendingCompilation,
+    #[serde(rename = "pending execution")]
+    PendingExecution,
     Ready,
     Failed,
+    Aborted,
 }
 
 /// Measurement results from a single circuit. For each measurement operation in the circuit, maps
@@ -451,6 +466,45 @@ impl Backend {
             msg: format!("Job did not finish in {} seconds", TIMEOUT_SECS),
         })
     }
+
+    /// Abort a submitted job.
+    ///
+    /// # Arguments
+    ///
+    /// `id` - The ID of the job to abort
+    ///
+    /// # Returns
+    ///
+    /// Err(RoqoqoBackendError) - If the job abortion failed.
+    pub fn abort_job(&self, id: &str) -> Result<(), RoqoqoBackendError> {
+        
+        let client = reqwest::blocking::Client::builder()
+            .https_only(true)
+            .build()
+            .map_err(|x| RoqoqoBackendError::NetworkError {
+                msg: format!("could not create https client {:?}", x),
+            })?;
+
+        let abort_url = [&self.device.remote_host(), "jobs", id, "abort"].join("/");
+
+        let resp = client
+            .post(abort_url)
+            .headers(_construct_headers(&self.access_token))
+            .send()
+            .map_err(|e| RoqoqoBackendError::NetworkError {
+                msg: format!("Error during POST request for abort_job: {:?}", e),
+            })?;
+
+        match resp.status() {
+            reqwest::StatusCode::OK => Ok(()),
+            _ => {
+                let abort_failed_msg: &str = &serde_json::from_str::<AbortResponse>(&resp.text().unwrap())
+                    .unwrap()
+                    .detail;
+                return Err(RoqoqoBackendError::GenericError { msg: format!("Job abortion failed: {}", abort_failed_msg) })
+            }
+        }
+    }
 }
 
 impl EvaluatingBackend for Backend {
@@ -494,14 +548,11 @@ impl EvaluatingBackend for Backend {
                 msg: format!("Error during POST request: {:?}", e),
             })?;
 
-        #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-        struct ResponseBody {
-            id: String,
-        }
         let job_id: &str = &serde_json::from_str::<ResponseBody>(&resp.text().unwrap())
             .unwrap()
             .id;
 
+        println!("{:?}", self.abort_job(job_id));
         let result_map: IqmMeasurementResult = self.wait_for_results(job_id)?;
 
         _results_to_registers(result_map, register_mapping, &mut bit_registers)?;
@@ -514,7 +565,6 @@ impl EvaluatingBackend for Backend {
 mod tests {
     use super::*;
     use std::f64::consts::PI;
-
     #[test]
     fn test_qubit_name_conversion_iqm_to_qoqo() {
         let qubit = String::from("QB2");
