@@ -478,7 +478,7 @@ impl Backend {
     ///
     /// # Returns
     ///
-    /// Err(RoqoqoBackendError) - If the job abortion failed.
+    /// `Err(RoqoqoBackendError)` - If the job abortion failed.
     pub fn abort_job(&self, id: &str) -> Result<(), RoqoqoBackendError> {
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
@@ -557,7 +557,6 @@ impl EvaluatingBackend for Backend {
             .unwrap()
             .id;
 
-        println!("{:?}", self.abort_job(job_id));
         let result_map: IqmMeasurementResult = self.wait_for_results(job_id)?;
 
         _results_to_registers(result_map, register_mapping, &mut bit_registers)?;

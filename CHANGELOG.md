@@ -7,10 +7,11 @@ This changelog track changes to the qoqo_iqm project starting at version 0.1.0
 ## 0.6.5
 
 * Updated to qoqo 1.5
+* Added function to abort a pending job. 
 
 ## 0.6.4
 
-Added support for PragmaSetNumberOfMeasurements and for allowed Pragma operations in the circuits.
+* Added support for PragmaSetNumberOfMeasurements and for allowed Pragma operations in the circuits.
 
 ## 0.6.3
 
