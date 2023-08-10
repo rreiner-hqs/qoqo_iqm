@@ -56,3 +56,7 @@ for use in the OpenSSL Toolkit (http://www.openssl.org/)."
 This product includes cryptographic software written by Eric Young
 (eay@cryptsoft.com).  This product includes software written by Tim
 Hudson (tjh@cryptsoft.com).
+
+## General Notes
+
+This project has been partially supported by [QExa](https://meetiqm.com/technology/qexa/).
