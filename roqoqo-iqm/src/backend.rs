@@ -21,8 +21,9 @@ use roqoqo::{Circuit, RoqoqoBackendError};
 
 use std::collections::HashMap;
 use std::env::var;
+use std::error::Error;
 use std::time::{Duration, Instant};
-use std::{fmt, fs, thread};
+use std::{fmt, thread};
 
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
@@ -58,13 +59,21 @@ fn _results_to_registers(
     for (reg, reg_result) in r.iter() {
         let measured_qubits = match measured_qubits_map.get(reg) {
             Some(x) => x,
-            None => return Err(RoqoqoBackendError::GenericError {
-                msg: "Backend results contain registers that are not present in the measured_qubits_map.".to_string() })
+            None => {
+                return Err(RoqoqoBackendError::GenericError {
+                    msg: "Backend results contain registers that are not present in the \
+                      measured_qubits_map."
+                        .to_string(),
+                })
+            }
         };
         let output_values = match output_registers.get_mut(reg) {
             Some(x) => x,
             None => return Err(RoqoqoBackendError::GenericError {
-                msg: "Backend results contain registers that are not present in the BitRegisters initialized by the Definition operations.".to_string() })
+                msg: "Backend results contain registers that are not present in the BitRegisters \
+                      initialized by the Definition operations."
+                    .to_string(),
+            }),
         };
 
         for (i, shot_result) in reg_result.iter().enumerate() {
@@ -171,34 +180,23 @@ struct Token {
     auth_server_url: String,
 }
 
-enum TokenError {
-    FileNotFound { msg: String },
-    ReadError { msg: String },
-    JsonError { msg: String },
+#[derive(Debug, Clone)]
+struct TokenError {
+    msg: String,
 }
+impl Error for TokenError {}
 
 impl fmt::Display for TokenError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            TokenError::FileNotFound { msg } => write!(f, "{}", msg),
-            TokenError::ReadError { msg } => write!(f, "{}", msg),
-            TokenError::JsonError { msg } => write!(f, "{}", msg),
-        }
+        write!(f, "{}", self.msg)
     }
 }
 
 fn _get_token_from_env_var() -> Result<String, TokenError> {
-    let filepath: String = var("IQM_TOKENS_FILE").map_err(|_| TokenError::FileNotFound {
-        msg: "Token file not found".to_string(),
+    let token: String = var("IQM_TOKEN").map_err(|_| TokenError {
+        msg: "Could not retrieve token from environment variable IQM_TOKEN.".to_string(),
     })?;
-    let text: String = fs::read_to_string(filepath).map_err(|_| TokenError::ReadError {
-        msg: "Unable to read token file".to_string(),
-    })?;
-    let token: Token = serde_json::from_str(&text).map_err(|_| TokenError::JsonError {
-        msg: "Token JSON not well formatted".to_string(),
-    })?;
-
-    Ok(token.access_token)
+    Ok(token)
 }
 
 // Helper function to get number of qubits in a qoqo Circuit
@@ -233,16 +231,16 @@ impl Backend {
     /// # Arguments
     ///
     /// `device` - The IQM device the Backend uses to execute operations and circuits.
-    ///            At the moment limited to the IQM demo environment.
     ///
     /// `access_token` - An access_token is required to access IQM hardware and simulators. The
-    ///                  access_token can either be given as an argument here or read from a
-    ///                  tokens.json file, whose location is given by the environmental variable
-    ///                  `$IQM_TOKENS_FILE`
+    /// access_token can either be passed as an argument, or if the argument is set to None will be
+    /// read from the environmental variable `IQM_TOKEN`.
+    ///
     /// # Returns
     ///
     /// `Ok(Backend)` - The newly created IQM backend
-    /// `Err(RoqoqoBackendError)` - If the access token cannot be retrieved
+    /// `Err(RoqoqoBackendError)` - If the access token cannot be retrieved from the `IQM_TOKEN`
+    /// environment variable.
     pub fn new(
         device: IqmDevice,
         access_token: Option<String>,
@@ -381,13 +379,13 @@ impl Backend {
     ///
     /// # Arguments
     ///
-    /// `id` - The job ID for the query
+    /// `id` - The job ID for the query.
     ///
     /// # Returns
     ///
-    /// `Ok(IqmRunResult)` - Result of the job (status can be pending)
+    /// `Ok(IqmRunResult)` - Result of the job (status can be pending).
     /// `Err(RoqoqoBackendError)` - If something goes wrong with HTML requests or response is not
-    /// formatted correctly
+    /// formatted correctly.
     pub fn get_results(&self, id: &str) -> Result<IqmRunResult, RoqoqoBackendError> {
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
@@ -438,8 +436,8 @@ impl Backend {
     ///
     /// # Returns
     ///
-    /// `Ok(IqmMeasurementResult)` - Result of the job if ready
-    /// `Err(RoqoqoBackendError)` - If job failed or timed out, or if there was an error retrieving
+    /// `Ok(IqmMeasurementResult)` - Result of the job if ready.
+    /// `Err(RoqoqoBackendError)` - If job failed or timed out, or if there was an error retrieving.
     /// the results
     pub fn wait_for_results(&self, id: &str) -> Result<IqmMeasurementResult, RoqoqoBackendError> {
         let start_time = Instant::now();
@@ -474,7 +472,7 @@ impl Backend {
     ///
     /// # Arguments
     ///
-    /// `id` - The ID of the job to abort
+    /// `id` - The ID of the job to abort.
     ///
     /// # Returns
     ///
@@ -510,6 +508,48 @@ impl Backend {
             }
         }
     }
+
+    /// Get information about the quantum architecture of the given device.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Information about the quantum architecture of the device.
+    /// * `Err(RoqoqoBackendError)` - Error response from IQM server.
+    pub fn get_quantum_architecture(&self) -> Result<String, RoqoqoBackendError> {
+        let endpoint_url = self
+            .device
+            .remote_host()
+            .replace("jobs", "quantum-architecture");
+
+        let client = reqwest::blocking::Client::builder()
+            .https_only(true)
+            .build()
+            .map_err(|x| RoqoqoBackendError::NetworkError {
+                msg: format!("Could not create https client {:?}", x),
+            })?;
+
+        let response = client
+            .get(endpoint_url)
+            .headers(_construct_headers(&self.access_token))
+            .send()
+            .map_err(|e| RoqoqoBackendError::NetworkError {
+                msg: format!("Error during GET request: {:?}", e),
+            })?;
+        if response.status().is_success() {
+            response
+                .text()
+                .map_err(|e| RoqoqoBackendError::NetworkError {
+                    msg: format!("Error during GET request: {:?}", e),
+                })
+        } else {
+            Err(RoqoqoBackendError::NetworkError {
+                msg: format!(
+                    "GET request failed with status code: {:?}",
+                    response.status()
+                ),
+            })
+        }
+    }
 }
 
 impl EvaluatingBackend for Backend {
@@ -541,7 +581,7 @@ impl EvaluatingBackend for Backend {
             .https_only(true)
             .build()
             .map_err(|x| RoqoqoBackendError::NetworkError {
-                msg: format!("could not create https client {:?}", x),
+                msg: format!("Could not create https client {:?}", x),
             })?;
 
         let resp = client

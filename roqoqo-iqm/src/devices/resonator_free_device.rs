@@ -10,47 +10,28 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! IQM Devices
-//!
-//! Provides the devices that are used to execute quantum programs with the IQM backend.
-
 use ndarray::Array2;
 use roqoqo::devices::{Device, GenericDevice};
+use std::cmp::{max, min};
 
-mod demo_device;
-pub use crate::devices::demo_device::DemoDevice;
-
-/// Collection of IQM quantum devices
-///
-/// At the moment only supports a Demo endpoint that returns pseudorandom numbers.
+/// Six-qubit device similar to the Adonis device, but without the central resonator. It has a star
+/// connectivity with the sixth qubit in the center, with `ControlledPauliZ` gates available between the
+/// central qubit and all the other qubits. This device is used to compile algorithms for use on the
+/// Adonis device.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub enum IqmDevice {
-    /// IQM demo environment
-    DemoDevice(DemoDevice),
+pub struct ResonatorFreeDevice {}
+
+impl ResonatorFreeDevice {
+    /// Create new ResonatorFreeDevice with default settings.
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
-impl IqmDevice {
-    /// Returns the remote_host url endpoint of the device
-    pub fn remote_host(&self) -> String {
-        match self {
-            IqmDevice::DemoDevice(x) => x.remote_host(),
-        }
-    }
-}
-impl From<&DemoDevice> for IqmDevice {
-    fn from(input: &DemoDevice) -> Self {
-        Self::DemoDevice(input.clone())
-    }
-}
-impl From<DemoDevice> for IqmDevice {
-    fn from(input: DemoDevice) -> Self {
-        Self::DemoDevice(input)
-    }
-}
-/// Implements the Device trait for IqmDevice.
+/// Implements the Device trait for ResonatorFreeDevice.
 ///
 /// Defines standard functions available for roqoqo-iqm devices.
-impl Device for IqmDevice {
+impl Device for ResonatorFreeDevice {
     /// Returns the gate time of a single qubit operation if the single qubit operation is available on device.
     ///
     /// # Arguments
@@ -64,8 +45,10 @@ impl Device for IqmDevice {
     /// * `None` - The gate is not available on the device.
     ///
     fn single_qubit_gate_time(&self, hqslang: &str, qubit: &usize) -> Option<f64> {
-        match self {
-            IqmDevice::DemoDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
+        if hqslang == "RotateXY" && qubit < &self.number_qubits() {
+            Some(1.0)
+        } else {
+            None
         }
     }
 
@@ -83,8 +66,14 @@ impl Device for IqmDevice {
     /// * `None` - The gate is not available on the device.
     ///
     fn two_qubit_gate_time(&self, hqslang: &str, control: &usize, target: &usize) -> Option<f64> {
-        match self {
-            IqmDevice::DemoDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
+        if hqslang == "ControlledPauliZ"
+            && self
+                .two_qubit_edges()
+                .contains(&(min(*control, *target), max(*control, *target)))
+        {
+            Some(1.0)
+        } else {
+            None
         }
     }
 
@@ -92,7 +81,7 @@ impl Device for IqmDevice {
     ///
     /// # Arguments
     ///
-    /// * `hqslang` - The hqslang name of a two qubit gate.
+    /// * `hqslang` - The hqslang name of a three qubit gate.
     /// * `control` - The control qubit the gate acts on
     /// * `target` - The target qubit the gate acts on
     ///
@@ -103,16 +92,12 @@ impl Device for IqmDevice {
     ///
     fn three_qubit_gate_time(
         &self,
-        hqslang: &str,
-        control_0: &usize,
-        control_1: &usize,
-        target: &usize,
+        _hqslang: &str,
+        _control_0: &usize,
+        _control_1: &usize,
+        _target: &usize,
     ) -> Option<f64> {
-        match self {
-            IqmDevice::DemoDevice(x) => {
-                x.three_qubit_gate_time(hqslang, control_0, control_1, target)
-            }
-        }
+        None
     }
 
     /// Returns the gate time of a multi qubit operation if the multi qubit operation is available on device.
@@ -127,10 +112,8 @@ impl Device for IqmDevice {
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
     ///
-    fn multi_qubit_gate_time(&self, hqslang: &str, qubits: &[usize]) -> Option<f64> {
-        match self {
-            IqmDevice::DemoDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
-        }
+    fn multi_qubit_gate_time(&self, _hqslang: &str, _qubits: &[usize]) -> Option<f64> {
+        None
     }
 
     /// Returns the matrix of the decoherence rates of the Lindblad equation.
@@ -151,10 +134,8 @@ impl Device for IqmDevice {
     /// * `Some<Array2<f64>>` - The decoherence rates.
     /// * `None` - The qubit is not part of the device.
     ///
-    fn qubit_decoherence_rates(&self, qubit: &usize) -> Option<Array2<f64>> {
-        match self {
-            IqmDevice::DemoDevice(x) => x.qubit_decoherence_rates(qubit),
-        }
+    fn qubit_decoherence_rates(&self, _qubit: &usize) -> Option<Array2<f64>> {
+        None
     }
 
     /// Returns the number of qubits the device supports.
@@ -164,9 +145,7 @@ impl Device for IqmDevice {
     /// The number of qubits in the device.
     ///
     fn number_qubits(&self) -> usize {
-        match self {
-            IqmDevice::DemoDevice(x) => x.number_qubits(),
-        }
+        6
     }
 
     /// Returns the list of pairs of qubits linked with a native two-qubit-gate in the device.
@@ -187,9 +166,11 @@ impl Device for IqmDevice {
     /// A list (Vec) of pairs of qubits linked with a native two-qubit-gate in the device.
     ///
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
-        match self {
-            IqmDevice::DemoDevice(x) => x.two_qubit_edges(),
+        let mut edges = vec![];
+        for i in 0..5 {
+            edges.push((i, 5))
         }
+        edges
     }
 
     /// Turns Device into GenericDevice
@@ -202,8 +183,46 @@ impl Device for IqmDevice {
     /// [crate::devices::GenericDevice] uses nested HashMaps to represent the most general device connectivity.
     /// The memory usage will be inefficient for devices with large qubit numbers.
     fn to_generic_device(&self) -> GenericDevice {
-        match self {
-            IqmDevice::DemoDevice(x) => x.to_generic_device(),
+        let mut generic_device = GenericDevice::new(self.number_qubits());
+
+        // Add single qubit gate times
+        for qubit in 0..self.number_qubits() {
+            generic_device
+                .set_single_qubit_gate_time(
+                    "RotateXY",
+                    qubit,
+                    self.single_qubit_gate_time("RotateXY", &qubit).unwrap(),
+                )
+                .unwrap()
         }
+        // Add two qubit gate times
+        for edge in self.two_qubit_edges() {
+            generic_device
+                .set_two_qubit_gate_time(
+                    "ControlledPauliZ",
+                    edge.0,
+                    edge.1,
+                    self.two_qubit_gate_time("ControlledPauliZ", &edge.0, &edge.1)
+                        .unwrap(),
+                )
+                .unwrap();
+            // Exchange control and target
+            generic_device
+                .set_two_qubit_gate_time(
+                    "ControlledPauliZ",
+                    edge.1,
+                    edge.0,
+                    self.two_qubit_gate_time("ControlledPauliZ", &edge.1, &edge.0)
+                        .unwrap(),
+                )
+                .unwrap();
+        }
+        generic_device
+    }
+}
+
+impl Default for ResonatorFreeDevice {
+    fn default() -> Self {
+        Self::new()
     }
 }
