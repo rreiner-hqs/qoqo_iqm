@@ -132,7 +132,7 @@ pub fn call_circuit<'a>(
                 // Check if we already have a measurement to the same register
                 // if yes, add the qubit being measured to that measurement
                 for instr in &mut circuit_vec {
-                    if instr.name == "measurement" {
+                    if instr.name == "measure" {
                         let meas_readout =
                             instr
                                 .args
@@ -163,7 +163,7 @@ pub fn call_circuit<'a>(
                 if !found {
                     // If no measurement to the same register was found, create a new IqmInstruction
                     let meas = IqmInstruction {
-                        name: "measurement".to_string(),
+                        name: "measure".to_string(),
                         qubits: vec![_convert_qubit_name_qoqo_to_iqm(*o.qubit())],
                         args: HashMap::from([("key".to_string(), CalculatorFloat::Str(readout))]),
                     };
@@ -212,7 +212,7 @@ pub fn call_circuit<'a>(
                     // remove MeasureQubit operations
                     let mut old_measurement_indices = vec![];
                     for (i, meas) in circuit_vec.iter().enumerate() {
-                        if meas.name == "measurement" {
+                        if meas.name == "measure" {
                             old_measurement_indices.push(i);
                         }
                     }
@@ -226,7 +226,7 @@ pub fn call_circuit<'a>(
 
                     // add single measurement instruction for all the qubits that were measured with MeasureQubit
                     let meas = IqmInstruction {
-                        name: "measurement".to_string(),
+                        name: "measure".to_string(),
                         qubits: measured_qubits
                             .iter()
                             .map(|x| _convert_qubit_name_qoqo_to_iqm(*x))
@@ -285,7 +285,7 @@ pub fn call_circuit<'a>(
                 }
 
                 let measure_all = IqmInstruction {
-                    name: "measurement".to_string(),
+                    name: "measure".to_string(),
                     qubits: _convert_all_qubit_names(device_number_qubits),
                     args: HashMap::from([("key".to_string(), CalculatorFloat::Str(readout))]),
                 };
@@ -362,7 +362,7 @@ pub fn call_operation(operation: &Operation) -> Result<Option<IqmInstruction>, R
             );
 
             Ok(Some(IqmInstruction {
-                name: "phased_rx".to_string(),
+                name: "prx".to_string(),
                 qubits: vec![_convert_qubit_name_qoqo_to_iqm(*op.qubit())],
                 args: op_parameters,
             }))

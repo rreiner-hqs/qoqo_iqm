@@ -12,7 +12,9 @@
 
 mod interface;
 pub use interface::{call_circuit, call_operation, IqmCircuit, IqmInstruction};
+
 mod backend;
 pub use backend::Backend;
+
 pub mod devices;
-pub use devices::{DemoDevice, IqmDevice};
+pub use devices::*;
