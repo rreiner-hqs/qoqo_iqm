@@ -29,7 +29,6 @@ use std::collections::HashMap;
 /// Provides functions to run circuits and measurements on IQM devices.
 #[pyclass(name = "Backend", module = "qoqo_iqm")]
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[pyo3(text_signature = "(device, access_token, timeout, mock_port)")]
 pub struct BackendWrapper {
     /// Internal storage of [roqoqo_iqm::Backend]
     pub internal: Backend,
@@ -83,6 +82,7 @@ impl BackendWrapper {
     /// Raises:
     ///     TypeError: Device Parameter is not IqmDevice
     ///     RuntimeError: No access token found
+    #[pyo3(text_signature = "(device, access_token)")]
     #[new]
     pub fn new(device: &PyAny, access_token: Option<String>) -> PyResult<Self> {
         // TODO for the moment only supports conversion into DemoDevice When support for more

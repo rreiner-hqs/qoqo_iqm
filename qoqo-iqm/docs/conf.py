@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-#
+# Copyright © 2019-2023 HQS Quantum Simulations GmbH. All Rights Reserved.
 """Configuration of sphinx documentation module"""
 import tomli
+from typing import List
+
 main_version = tomli.load(open("../pyproject.toml", "rb"))["project"]["version"]
 
 
@@ -15,63 +15,66 @@ main_version = tomli.load(open("../pyproject.toml", "rb"))["project"]["version"]
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
-              'sphinx.ext.doctest',
-              'sphinx.ext.todo',
-              'sphinx.ext.coverage',
-              'sphinx.ext.mathjax',
-              'sphinx.ext.viewcode',
-              'sphinx.ext.napoleon',
-              'sphinx.ext.autosummary',
-              'nbsphinx',
-              'myst_parser']
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
+    "nbsphinx",
+    "myst_parser",
+]
 # automatically use sphinx-autogen
 autosummary_generate = True
 autosummary_imported_members = True
 # define mock imports for packages that are difficult to handle / install
-alist = []
+alist: List[str] = []
 autodoc_mock_imports = alist
 
 # 'both': class and __init__ docstring are concatenated and inserted
 # 'class': only class docstring inserted
 # 'init': only init docstring inserted
-autoclass_content = 'class'
+autoclass_content = "class"
 # This value is a list of autodoc directive flags that should be automatically applied to
 # all autodoc directives. The supported flags are 'members', 'undoc-members',
 # 'private-members', 'special-members', 'inherited-members', 'show-inheritance',
 # 'ignore-module-all' and 'exclude-members'.
-#autodoc_default_flags = ['members', 'exclude-members']
+# autodoc_default_flags = ['members', 'exclude-members']
 # The default options for autodoc directives. They are applied to all autodoc directives
 # automatically. It must be a dictionary which maps option names to the values.
 autodoc_default_options = {
-    'members': True,
-    'special-members': False,
-    'imported-members': False,
-    'private-members': False,
-    'inherited-members': False,
+    "members": True,
+    "special-members": False,
+    "imported-members": False,
+    "private-members": False,
+    "inherited-members": False,
     #    'member-order': 'bysource',
-    'special-members': False,
-    'undoc-members': False,
-    'exclude-members': '__init__'}
+    "special-members": False,
+    "undoc-members": False,
+    "exclude-members": "__init__",
+}
 # This value controls the docstrings inheritance. If set to True the docstring for classes
 # or methods, if not explicitly set, is inherited form parents.
 autodoc_inherit_docstrings = False
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.txt': 'markdown',
-    '.md': 'markdown',
+    ".rst": "restructuredtext",
+    ".txt": "markdown",
+    ".md": "markdown",
 }
 
 # The master toctree document.
-master_doc = 'index'
+master_doc = "index"
 
 # General information about the project.
-project = 'qoqo_iqm'
-copyright = '2021, HQS Quantum Simulations GmbH'
-author = 'Rolando Reiner'
+project = "qoqo-iqm"
+copyright = "2021, HQS Quantum Simulations GmbH"
+author = "HQS Quantum Simulations GmbH"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -83,15 +86,15 @@ version = main_version
 release = version
 
 
-language = 'English'
+language = "English"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = 'default'
+pygments_style = "default"
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
@@ -114,13 +117,13 @@ html_theme = "sphinx_rtd_theme"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 # html_static_path = ['_static']
-html_static_path = []
+html_static_path: List[str] = []
 
 
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'qoqoiqmdoc'
+htmlhelp_basename = "qoqo-iqmdoc"
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -128,16 +131,13 @@ htmlhelp_basename = 'qoqoiqmdoc'
 latex_elements = {
     # The paper size ('letterpaper' or 'a4paper').
     #
-    # 'papersize': 'letterpaper',
-
+    "papersize": "a4paper",
     # The font size ('10pt', '11pt' or '12pt').
     #
     # 'pointsize': '10pt',
-
     # Additional stuff for the LaTeX preamble.
     #
     # 'preamble': '',
-
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
@@ -147,8 +147,13 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'qoqo_iqm.tex', 'qoqo_iqm Documentation',
-     'HQS Quantum Simulations GmbH', 'manual'),
+    (
+        master_doc,
+        "qoqo-iqm.tex",
+        "qoqo-iqm Documentation",
+        "HQS Quantum Simulations GmbH",
+        "manual",
+    ),
 ]
 
 
@@ -156,10 +161,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'qoqo_iqm', 'qoqo_iqm Documentation',
-     [author], 1)
-]
+man_pages = [(master_doc, "qoqo-iqm", "qoqo-iqm Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output -------------------------------------------
@@ -168,10 +170,16 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'qoqo_iqm', 'qoqo_iqm Documentation',
-     author, 'qoqo_iqm', 'IQM backend for qoqo quantum computing toolkit.',
-     'Miscellaneous'),
+    (
+        master_doc,
+        "qoqo-iqm",
+        "qoqo-iqm Documentation",
+        author,
+        "qoqo-iqm",
+        "HQS Quantum Simulations package for circuit conversions/transformations.",
+        "Miscellaneous",
+    ),
 ]
 
 # Turning off executing notebooks when adding them to Documentation
-nbsphinx_execute = 'never'
+nbsphinx_execute = "never"

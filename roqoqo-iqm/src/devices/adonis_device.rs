@@ -88,21 +88,21 @@ impl Device for AdonisDevice {
         if target == &0_usize {
             match hqslang {
                 "CZQubitResonator" => {
-                    if qubit < self.number_qubits() {
+                    if control < &self.number_qubits() {
                         Some(1.0)
                     } else {
                         None
                     }
                 }
                 "SingleExcitationLoad" => {
-                    if qubit == 5 {
+                    if control == &5 {
                         Some(1.0)
                     } else {
                         None
                     }
                 }
                 "SingleExcitationStore" => {
-                    if qubit == 5 {
+                    if control == &5 {
                         Some(1.0)
                     } else {
                         None
