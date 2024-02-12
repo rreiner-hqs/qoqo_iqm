@@ -1,0 +1,13 @@
+[book]
+authors = ["HQS Quantum Simulations", "Rolando Reiner"]
+language = "en"
+multilingual = false
+src = "src"
+title = "HQS Qonvert User Documentation"
+
+[preprocessor.katex]
+
+[output.katex]
+
+[output.html]
+mathjax-support = true

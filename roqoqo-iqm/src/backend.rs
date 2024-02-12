@@ -445,7 +445,7 @@ impl Backend {
             let iqm_result: IqmRunResult = self.get_results(id)?;
             if iqm_result.status == Status::Ready {
                 match iqm_result.measurements {
-                    Some(x) => match x.get(0) {
+                    Some(x) => match x.first() {
                         Some(y) => return Ok(y.clone()),
                         None => {
                             return Err(RoqoqoBackendError::GenericError {

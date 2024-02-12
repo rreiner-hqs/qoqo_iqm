@@ -1,0 +1,12 @@
+include:
+  - project: templates/templates
+    file:
+      - rust/default_with_docs.yml
+
+variables:
+  RUST_SRC_DIRS: "roqoqo-iqm"
+  PYO3_SRC_DIRS: "qoqo-iqm"
+  MD_BOOK_DIR: "documentation"
+  SPHINX_DIR: "docs"
+  # Repos for which coverage is created by cargo llvm-cov
+  RUST_COVERAGE_REPOS: "roqoqo-iqm"

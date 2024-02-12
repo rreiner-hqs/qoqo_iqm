@@ -22,7 +22,7 @@ use test_case::test_case;
 #[test_case(
     operations::RotateXY::new(1, 1.0.into(), 1.0.into()).into(),
     IqmInstruction {
-        name : "phased_rx".to_string(),
+        name : "prx".to_string(),
         qubits: vec!["QB2".to_string()],
         args : HashMap::from([
             ("angle_t".to_string(), CalculatorFloat::Float(1.0)),
@@ -60,7 +60,7 @@ fn test_call_circuit_repeated_measurement() {
 
     let mut circuit = Circuit::new();
     circuit += operations::ControlledPauliZ::new(0, 1);
-    circuit += operations::RotateXY::new(0, 1.0.into(), 1.0.into());
+    circuit += operations::RotateXY::new(0, 1.0.into(), 5.0.into());
     circuit += operations::PragmaLoop::new(CalculatorFloat::Float(3.0), inner_circuit);
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
@@ -74,15 +74,15 @@ fn test_call_circuit_repeated_measurement() {
         args: HashMap::new(),
     };
     let xy_instruction = IqmInstruction {
-        name: "phased_rx".to_string(),
+        name: "prx".to_string(),
         qubits: vec!["QB1".to_string()],
         args: HashMap::from([
             ("angle_t".to_string(), CalculatorFloat::Float(1.0)),
-            ("phase_t".to_string(), CalculatorFloat::Float(1.0)),
+            ("phase_t".to_string(), CalculatorFloat::Float(5.0)),
         ]),
     };
     let meas_instruction = IqmInstruction {
-        name: "measurement".to_string(),
+        name: "measure".to_string(),
         qubits: vec!["QB1".to_string(), "QB2".to_string()],
         args: HashMap::from([("key".to_string(), CalculatorFloat::Str("ro".to_string()))]),
     };
@@ -123,7 +123,7 @@ fn test_call_circuit_single_measurement() {
         args: HashMap::new(),
     };
     let xy_instruction = IqmInstruction {
-        name: "phased_rx".to_string(),
+        name: "prx".to_string(),
         qubits: vec!["QB1".to_string()],
         args: HashMap::from([
             ("angle_t".to_string(), CalculatorFloat::Float(1.0)),
@@ -131,15 +131,12 @@ fn test_call_circuit_single_measurement() {
         ]),
     };
     let meas_instruction = IqmInstruction {
-        name: "measurement".to_string(),
+        name: "measure".to_string(),
         qubits: vec!["QB1".to_string(), "QB2".to_string()],
         args: HashMap::from([("key".to_string(), CalculatorFloat::Str("ro".to_string()))]),
     };
 
-    let mut instruction_vec = vec![];
-    instruction_vec.push(cz_instruction);
-    instruction_vec.push(xy_instruction);
-    instruction_vec.push(meas_instruction);
+    let instruction_vec = vec![cz_instruction, xy_instruction, meas_instruction];
 
     let res_expected: IqmCircuit = IqmCircuit {
         name: String::from("my_qc"),

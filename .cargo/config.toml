@@ -1,0 +1,3 @@
+
+[registries]
+hqs-ktra = { index = "https://gitlab.office.quantumsimulations.de/nvogt/ktra_git_index.git" }
