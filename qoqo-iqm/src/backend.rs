@@ -77,7 +77,7 @@ impl BackendWrapper {
     /// Args:
     ///     device (Device): IQM Device providing information about the endpoint running Circuits.
     ///     access_token (Optional[str]): Optional access token to IQM endpoints.
-    ///                                   When None access token is read from $IQM_TOKENS_FILE environmental variable
+    ///                                   When None access token is read from $IQM_TOKEN environmental variable
     ///
     /// Raises:
     ///     TypeError: Device Parameter is not IqmDevice

@@ -39,7 +39,7 @@ fn test_creating_backend() {
             .unwrap();
     });
 
-    if env::var("IQM_TOKENS_FILE").is_ok() {
+    if env::var("IQM_TOKEN").is_ok() {
         // Test if Backend correctly retrieves access token from environment variable
         Python::with_gil(|py| {
             let device_type = py.get_type::<devices::DemoDeviceWrapper>();
@@ -56,7 +56,7 @@ fn test_creating_backend() {
                 .unwrap();
         })
     } else {
-        // If the environment variable IQM_TOKENS_FILE is not set and an access token is not provided, creation of the Backend should fail
+        // If the environment variable IQM_TOKEN is not set and an access token is not provided, creation of the Backend should fail
         Python::with_gil(|py| {
             let device_type = py.get_type::<devices::DemoDeviceWrapper>();
             let device = device_type

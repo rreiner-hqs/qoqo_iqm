@@ -13,19 +13,19 @@
 use ndarray::Array2;
 use roqoqo::devices::{Device, GenericDevice};
 
-/// IQM Adonis device
+/// IQM Deneb device
 ///
 /// A hardware device composed of six qubits each coupled to a central resonator.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct AdonisDevice {
+pub struct DenebDevice {
     url: String,
 }
 
-impl AdonisDevice {
-    /// Create new AdonisDevice with default settings.
+impl DenebDevice {
+    /// Create new DenebDevice with default settings.
     pub fn new() -> Self {
         Self {
-            url: "https://cocos.resonance.meetiqm.com/adonis/jobs".to_string(),
+            url: "https://cocos.resonance.meetiqm.com/deneb/jobs".to_string(),
         }
     }
 
@@ -44,10 +44,10 @@ impl AdonisDevice {
     }
 }
 
-/// Implements the Device trait for AdonisDevice.
+/// Implements the Device trait for DenebDevice.
 ///
 /// Defines standard functions available for roqoqo-iqm devices.
-impl Device for AdonisDevice {
+impl Device for DenebDevice {
     /// Returns the gate time of a single qubit operation if the single qubit operation is available
     /// on device.
     ///
@@ -71,7 +71,7 @@ impl Device for AdonisDevice {
 
     /// Returns the gate time of a qubit-resonator operation if the operation is available on device.
     /// Note that in this method the control qubit is the actual qubit involved, while the target
-    /// qubit corresponds to the central resonator of the Adonis device.
+    /// qubit corresponds to the central resonator of the Deneb device.
     ///
     /// # Arguments
     ///
@@ -257,7 +257,7 @@ impl Device for AdonisDevice {
     }
 }
 
-impl Default for AdonisDevice {
+impl Default for DenebDevice {
     fn default() -> Self {
         Self::new()
     }

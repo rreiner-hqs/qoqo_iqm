@@ -13,11 +13,19 @@
 mod demo_device;
 pub use demo_device::*;
 
+mod deneb_device;
+pub use deneb_device::*;
+
+mod resonator_free_device;
+pub use resonator_free_device::*;
+
 use pyo3::prelude::*;
 
 /// IQM Devices
 #[pymodule]
 pub fn iqm_devices(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<DemoDeviceWrapper>()?;
+    m.add_class::<DenebDeviceWrapper>()?;
+    m.add_class::<ResonatorFreeDeviceWrapper>()?;
     Ok(())
 }

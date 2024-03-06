@@ -14,12 +14,12 @@ use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyByteArray;
 
-use roqoqo::devices::Device;
 use bincode::{deserialize, serialize};
+use roqoqo::devices::Device;
 use roqoqo_iqm::devices::ResonatorFreeDevice;
 
-/// Six-qubit device similar to the Adonis device, but without the central resonator and with CZ
-/// gates available between each pair of qubits. Used to transpile algorithms for use on the Adonis
+/// Six-qubit device similar to the Deneb device, but without the central resonator and with CZ
+/// gates available between each pair of qubits. Used to transpile algorithms for use on the Deneb
 /// device.
 #[pyclass(name = "ResonatorFreeDevice", module = "qoqo_iqm")]
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
@@ -52,13 +52,19 @@ impl ResonatorFreeDeviceWrapper {
                 Ok(try_downcast.internal)
             } else {
                 let get_bytes = input.call_method0("to_bincode").map_err(|_| {
-                PyTypeError::new_err("Python object cannot be converted to IQM ResonatorFreeDevice:\
-                                      Cast to binary representation failed".to_string())
-            })?;
+                    PyTypeError::new_err(
+                        "Python object cannot be converted to IQM ResonatorFreeDevice:\
+                                      Cast to binary representation failed"
+                            .to_string(),
+                    )
+                })?;
                 let bytes = get_bytes.extract::<Vec<u8>>().map_err(|_| {
-                PyTypeError::new_err("Python object cannot be converted to IQM ResonatorFreeDevice:\
-                                      Cast to binary representation failed".to_string())
-            })?;
+                    PyTypeError::new_err(
+                        "Python object cannot be converted to IQM ResonatorFreeDevice:\
+                                      Cast to binary representation failed"
+                            .to_string(),
+                    )
+                })?;
                 deserialize(&bytes[..]).map_err(|err| {
                     PyTypeError::new_err(format!(
                     "Python object cannot be converted to IQM ResonatorFreeDevice: Deserialization \
@@ -132,10 +138,9 @@ impl ResonatorFreeDeviceWrapper {
             .map_err(|_| PyTypeError::new_err("Input cannot be converted to byte array"))?;
 
         Ok(ResonatorFreeDeviceWrapper {
-            internal: deserialize(&bytes[..])
-                .map_err(|_| PyValueError::new_err(
-                    "Input cannot be deserialized to ResonatorFreeDevice")
-                )?,
+            internal: deserialize(&bytes[..]).map_err(|_| {
+                PyValueError::new_err("Input cannot be deserialized to ResonatorFreeDevice")
+            })?,
         })
     }
 
