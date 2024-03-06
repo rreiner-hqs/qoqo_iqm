@@ -9,7 +9,7 @@ IQM-backend for the qoqo/roqoqo quantum toolkit by [HQS Quantum Simulations](htt
 
 The qoqo_iqm/roqoqo-iqm packages provide backends for qoqo/roqoqo that allow the users to run quantum circuits on the IQM web API testbed.
 The testbed is  accessed via a web REST-API.
-To run circuits or QuantumPrograms with this backend you need a valid access token. The access token can be set via the environment variable `IQM_TOKENS_FILE` that contains the path to the `tokens.json` file.  
+To run circuits or QuantumPrograms with this backend you need a valid access token. The access token can be set via the environment variable `IQM_TOKEN`.
 
 This repository contains two components:
 

@@ -14,10 +14,10 @@ use ndarray::Array2;
 use roqoqo::devices::{Device, GenericDevice};
 use std::cmp::{max, min};
 
-/// Six-qubit device similar to the Adonis device, but without the central resonator. It has a star
+/// Six-qubit device similar to the Deneb device, but without the central resonator. It has a star
 /// connectivity with the sixth qubit in the center, with `ControlledPauliZ` gates available between the
 /// central qubit and all the other qubits. This device is used to compile algorithms for use on the
-/// Adonis device.
+/// Deneb device.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResonatorFreeDevice {}
 

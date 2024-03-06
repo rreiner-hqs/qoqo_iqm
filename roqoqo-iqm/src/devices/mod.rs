@@ -20,8 +20,8 @@ use roqoqo::devices::{Device, GenericDevice};
 mod demo_device;
 pub use demo_device::DemoDevice;
 
-mod adonis_device;
-pub use adonis_device::AdonisDevice;
+mod deneb_device;
+pub use deneb_device::DenebDevice;
 
 mod resonator_free_device;
 pub use resonator_free_device::ResonatorFreeDevice;
@@ -33,9 +33,9 @@ pub use resonator_free_device::ResonatorFreeDevice;
 pub enum IqmDevice {
     /// IQM demo environment
     DemoDevice(DemoDevice),
-    /// IQM Adonis device
-    AdonisDevice(AdonisDevice),
-    /// Device like Adonis but without the central resonator
+    /// IQM Deneb device
+    DenebDevice(DenebDevice),
+    /// Device like Deneb but without the central resonator
     ResonatorFreeDevice(ResonatorFreeDevice),
 }
 
@@ -44,7 +44,7 @@ impl IqmDevice {
     pub fn remote_host(&self) -> String {
         match self {
             IqmDevice::DemoDevice(x) => x.remote_host(),
-            IqmDevice::AdonisDevice(x) => x.remote_host(),
+            IqmDevice::DenebDevice(x) => x.remote_host(),
             IqmDevice::ResonatorFreeDevice(_) => "".to_string(),
         }
     }
@@ -61,14 +61,14 @@ impl From<DemoDevice> for IqmDevice {
     }
 }
 
-impl From<&AdonisDevice> for IqmDevice {
-    fn from(input: &AdonisDevice) -> Self {
-        Self::AdonisDevice(input.clone())
+impl From<&DenebDevice> for IqmDevice {
+    fn from(input: &DenebDevice) -> Self {
+        Self::DenebDevice(input.clone())
     }
 }
-impl From<AdonisDevice> for IqmDevice {
-    fn from(input: AdonisDevice) -> Self {
-        Self::AdonisDevice(input)
+impl From<DenebDevice> for IqmDevice {
+    fn from(input: DenebDevice) -> Self {
+        Self::DenebDevice(input)
     }
 }
 
@@ -102,7 +102,7 @@ impl Device for IqmDevice {
     fn single_qubit_gate_time(&self, hqslang: &str, qubit: &usize) -> Option<f64> {
         match self {
             IqmDevice::DemoDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
-            IqmDevice::AdonisDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
+            IqmDevice::DenebDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
             IqmDevice::ResonatorFreeDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
         }
     }
@@ -123,7 +123,7 @@ impl Device for IqmDevice {
     fn two_qubit_gate_time(&self, hqslang: &str, control: &usize, target: &usize) -> Option<f64> {
         match self {
             IqmDevice::DemoDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
-            IqmDevice::AdonisDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
+            IqmDevice::DenebDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
             IqmDevice::ResonatorFreeDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
         }
     }
@@ -152,7 +152,7 @@ impl Device for IqmDevice {
             IqmDevice::DemoDevice(x) => {
                 x.three_qubit_gate_time(hqslang, control_0, control_1, target)
             }
-            IqmDevice::AdonisDevice(x) => {
+            IqmDevice::DenebDevice(x) => {
                 x.three_qubit_gate_time(hqslang, control_0, control_1, target)
             }
             IqmDevice::ResonatorFreeDevice(x) => {
@@ -176,7 +176,7 @@ impl Device for IqmDevice {
     fn multi_qubit_gate_time(&self, hqslang: &str, qubits: &[usize]) -> Option<f64> {
         match self {
             IqmDevice::DemoDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
-            IqmDevice::AdonisDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
+            IqmDevice::DenebDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
             IqmDevice::ResonatorFreeDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
         }
     }
@@ -202,7 +202,7 @@ impl Device for IqmDevice {
     fn qubit_decoherence_rates(&self, qubit: &usize) -> Option<Array2<f64>> {
         match self {
             IqmDevice::DemoDevice(x) => x.qubit_decoherence_rates(qubit),
-            IqmDevice::AdonisDevice(x) => x.qubit_decoherence_rates(qubit),
+            IqmDevice::DenebDevice(x) => x.qubit_decoherence_rates(qubit),
             IqmDevice::ResonatorFreeDevice(x) => x.qubit_decoherence_rates(qubit),
         }
     }
@@ -216,7 +216,7 @@ impl Device for IqmDevice {
     fn number_qubits(&self) -> usize {
         match self {
             IqmDevice::DemoDevice(x) => x.number_qubits(),
-            IqmDevice::AdonisDevice(x) => x.number_qubits(),
+            IqmDevice::DenebDevice(x) => x.number_qubits(),
             IqmDevice::ResonatorFreeDevice(x) => x.number_qubits(),
         }
     }
@@ -241,7 +241,7 @@ impl Device for IqmDevice {
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
         match self {
             IqmDevice::DemoDevice(x) => x.two_qubit_edges(),
-            IqmDevice::AdonisDevice(x) => x.two_qubit_edges(),
+            IqmDevice::DenebDevice(x) => x.two_qubit_edges(),
             IqmDevice::ResonatorFreeDevice(x) => x.two_qubit_edges(),
         }
     }
@@ -258,7 +258,7 @@ impl Device for IqmDevice {
     fn to_generic_device(&self) -> GenericDevice {
         match self {
             IqmDevice::DemoDevice(x) => x.to_generic_device(),
-            IqmDevice::AdonisDevice(x) => x.to_generic_device(),
+            IqmDevice::DenebDevice(x) => x.to_generic_device(),
             IqmDevice::ResonatorFreeDevice(x) => x.to_generic_device(),
         }
     }

@@ -21,7 +21,7 @@ use std::f64::consts::PI;
 #[test]
 fn init_backend() {
     let device = DemoDevice::new();
-    if env::var("IQM_TOKENS_FILE").is_ok() {
+    if env::var("IQM_TOKEN").is_ok() {
         let ok = Backend::new(device.into(), None).is_ok();
         assert!(ok);
     } else {
@@ -35,7 +35,7 @@ fn init_backend() {
 
 #[test]
 fn test_register_initialization() {
-    if env::var("IQM_TOKENS_FILE").is_ok() {
+    if env::var("IQM_TOKEN").is_ok() {
         let device = DemoDevice::new();
         let backend = Backend::new(device.into(), None).unwrap();
 
@@ -53,13 +53,13 @@ fn test_register_initialization() {
 
         assert_eq!(*reg2_result, expected_output);
     } else {
-        eprintln!("no IQM_TOKENS_FILE env var found.")
+        eprintln!("no IQM_TOKEN env var found.")
     }
 }
 
 #[test]
 fn run_circuit_single_measurements() {
-    if env::var("IQM_TOKENS_FILE").is_ok() {
+    if env::var("IQM_TOKEN").is_ok() {
         let device = DemoDevice::new();
         let backend = Backend::new(device.into(), None).unwrap();
         let mut qc = Circuit::new();
@@ -78,7 +78,7 @@ fn run_circuit_single_measurements() {
         assert!(bit_registers.contains_key("my_reg1"));
         assert!(bit_registers.contains_key("my_reg2"));
     } else {
-        eprintln!("no IQM_TOKENS_FILE env var found.")
+        eprintln!("no IQM_TOKEN env var found.")
     }
 }
 
@@ -86,7 +86,7 @@ fn run_circuit_single_measurements() {
 // Ignore because the Demo backend returns pseudorandom results and does not implement a simulator
 #[test]
 fn run_circuit_repeated_measurements() {
-    if env::var("IQM_TOKENS_FILE").is_ok() {
+    if env::var("IQM_TOKEN").is_ok() {
         let device = DemoDevice::new();
         let backend = Backend::new(device.into(), None).unwrap();
         let mut qc = Circuit::new();
@@ -105,7 +105,7 @@ fn run_circuit_repeated_measurements() {
         let shots_in_results = bit_registers.get("my_reg").unwrap().len();
         assert_eq!(shots_in_results, 10)
     } else {
-        eprintln!("no IQM_TOKENS_FILE env var found.")
+        eprintln!("no IQM_TOKEN env var found.")
     }
 }
 
@@ -155,7 +155,7 @@ fn double_measurements() {
 
 #[test]
 fn test_overwrite_number_measurements() {
-    if env::var("IQM_TOKENS_FILE").is_ok() {
+    if env::var("IQM_TOKEN").is_ok() {
         let mut qc = Circuit::new();
         qc += ControlledPauliZ::new(0, 2);
         qc += DefinitionBit::new("ro".to_string(), 3, true);
@@ -170,13 +170,13 @@ fn test_overwrite_number_measurements() {
 
         assert_eq!(backend.number_measurements_internal.unwrap(), 20);
     } else {
-        eprintln!("no IQM_TOKENS_FILE env var found.")
+        eprintln!("no IQM_TOKEN env var found.")
     }
 }
 
 #[test]
 fn test_overwrite_readout_register() {
-    if env::var("IQM_TOKENS_FILE").is_ok() {
+    if env::var("IQM_TOKEN").is_ok() {
         let mut qc = Circuit::new();
         qc += ControlledPauliZ::new(0, 2);
         qc += RotateXY::new(0, 1.0.into(), 1.0.into());
@@ -195,6 +195,6 @@ fn test_overwrite_readout_register() {
         let result = bit_registers.get("ro2").unwrap();
         assert_eq!(expected, *result)
     } else {
-        eprintln!("no IQM_TOKENS_FILE env var found.")
+        eprintln!("no IQM_TOKEN env var found.")
     }
 }

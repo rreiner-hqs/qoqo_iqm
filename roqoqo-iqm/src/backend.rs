@@ -593,6 +593,16 @@ impl EvaluatingBackend for Backend {
                 msg: format!("Error during POST request: {:?}", e),
             })?;
 
+        let status = resp.status().as_u16();
+        if status != 200_u16 {
+            return Err(RoqoqoBackendError::GenericError {
+                msg: format!(
+                    "Received an error response with HTTP status code: {}",
+                    status
+                ),
+            });
+        }
+
         let job_id: &str = &serde_json::from_str::<ResponseBody>(&resp.text().unwrap())
             .unwrap()
             .id;
