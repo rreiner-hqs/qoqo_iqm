@@ -15,8 +15,8 @@ import pytest
 import sys
 from qoqo import operations as ops
 from qoqo import Circuit
-from qoqo_iqm.devices import DemoDevice
-import qoqo_iqm  # noqa
+from qoqo_iqm.devices import DenebDevice
+import qoqo_iqm
 
 
 def test_mocked_backend():
@@ -25,10 +25,10 @@ def test_mocked_backend():
     circuit += ops.DefinitionFloat(name="ro", length=1, is_output=True)
     circuit += ops.DefinitionComplex(name="ro", length=1, is_output=True)
     circuit += ops.DefinitionBit(name="ro", length=1, is_output=True)
-    circuit += ops.ControlledPauliZ(0, 1)
+    circuit += ops.CZQubitResonator(0, 1)
     circuit += ops.MeasureQubit(0, "ro", True)
 
-    device = DemoDevice()
+    device = DenebDevice()
     _backend = qoqo_iqm.Backend(device, "")
 
 

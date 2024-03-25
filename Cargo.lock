@@ -898,7 +898,7 @@ dependencies = [
 
 [[package]]
 name = "qoqo-iqm"
-version = "0.6.5"
+version = "0.7.0"
 dependencies = [
  "bincode",
  "pyo3",
@@ -1090,7 +1090,7 @@ dependencies = [
 
 [[package]]
 name = "roqoqo-iqm"
-version = "0.6.5"
+version = "0.7.0"
 dependencies = [
  "itertools",
  "ndarray",
@@ -1307,9 +1307,9 @@ dependencies = [
 
 [[package]]
 name = "struqture"
-version = "1.6.0"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be0c8e01ccb1eb5704756651126b09a0eb276fe3d018e87f6490773cefb38359"
+checksum = "b5e6a6fae203fb8098042ab51364cf5ff79020312e68b63038371d627029ab08"
 dependencies = [
  "itertools",
  "ndarray",
@@ -1324,9 +1324,9 @@ dependencies = [
 
 [[package]]
 name = "struqture-py"
-version = "1.6.0"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09b138454a27864ea7ca9a22eaf0351270c78cb329961e5d46395cc9bcac31b3"
+checksum = "bd549b80a7e8a929b9125c37c8ec8f74916df3ed2fbc427462ee93812c1f450e"
 dependencies = [
  "bincode",
  "num-complex",
@@ -1348,9 +1348,9 @@ dependencies = [
 
 [[package]]
 name = "struqture-py-macros"
-version = "1.6.0"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9274be85d19e94e55fba30b59ef862d2b11778b099a61449cb381c8965644c79"
+checksum = "3215f75379ad75b4847b3166e5fd39de65ae2723a9cdd382ad92966925a8f48e"
 dependencies = [
  "num-complex",
  "proc-macro2",

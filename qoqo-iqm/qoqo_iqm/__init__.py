@@ -25,7 +25,7 @@ to the testbed. It will NOT return data from a valid simulation of a quantum cir
 
 """
 
-from . import *
+from .qoqo_iqm import *
 
 print(
     """Note: At the moment this backend can only be used to test the connection

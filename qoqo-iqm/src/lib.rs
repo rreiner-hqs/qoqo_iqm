@@ -10,12 +10,22 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Python interface of roqoqo-iqm
+//!
+
+#![deny(missing_docs)]
+#![warn(rustdoc::private_intra_doc_links)]
+#![warn(rustdoc::missing_crate_level_docs)]
+#![warn(rustdoc::missing_doc_code_examples)]
+#![warn(rustdoc::private_doc_tests)]
+
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3::wrap_pymodule;
 
+/// Qoqo-IQM devices
 pub mod devices;
-pub use devices::DemoDeviceWrapper;
+pub use devices::DenebDeviceWrapper;
 
 mod backend;
 pub use backend::BackendWrapper;
@@ -26,7 +36,7 @@ pub use backend::BackendWrapper;
 #[pymodule]
 fn qoqo_iqm(_py: Python, module: &PyModule) -> PyResult<()> {
     module.add_class::<BackendWrapper>()?;
-    module.add_class::<DemoDeviceWrapper>()?;
+    module.add_class::<DenebDeviceWrapper>()?;
 
     let wrapper = wrap_pymodule!(devices::iqm_devices);
     module.add_wrapped(wrapper)?;

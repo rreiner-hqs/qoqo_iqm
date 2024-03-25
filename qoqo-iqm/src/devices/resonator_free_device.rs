@@ -37,14 +37,14 @@ impl ResonatorFreeDeviceWrapper {
     /// ResonatorFreeDeviceWrapper instance and, if not, by invoking the to_bincode method on the object and
     /// deserializing the returned binary data.
     ///
-    /// # Arguments
+    /// Args:
+    ///     input (ResonatorFreeDevice): The Python object that should be casted to a [roqoqo_iqm::ResonatorFreeDevice]
     ///
-    /// `input` - The Python object that should be casted to a [roqoqo_iqm::ResonatorFreeDevice]
+    /// Returns:
+    ///     ResonatorFreeDevice: The resulting ResonatorFreeDevice
     ///
-    /// # Returns
-    ///
-    /// `Ok(ResonatorFreeDevice)` - The resulting`` ResonatorFreeDevcice`
-    /// `Err(PyErr)` - Something went wrong during the downcasting.
+    /// Raises:
+    ///     PyTypeError: Something went wrong during the downcasting.
     pub fn from_pyany(input: Py<PyAny>) -> PyResult<ResonatorFreeDevice> {
         Python::with_gil(|py| -> PyResult<ResonatorFreeDevice> {
             let input = input.as_ref(py);
@@ -148,7 +148,6 @@ impl ResonatorFreeDeviceWrapper {
     ///
     /// Returns:
     ///     int: The number of qubits.
-    ///
     pub fn number_qubits(&self) -> usize {
         self.internal.number_qubits()
     }
@@ -165,11 +164,18 @@ impl ResonatorFreeDeviceWrapper {
     /// undirected connectivity graph of the device. It can be used to construct the connectivity
     /// graph in a graph library of the user's choice from a list of edges and can be used for
     /// applications like routing in quantum algorithms.
+    ///
+    /// Returns:
+    ///     list[tuple[int, int]]: The list of two qubit edges.
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
         self.internal.two_qubit_edges()
     }
 
     /// Returns the gate time of a single qubit operation on this device.
+    ///
+    /// Args:
+    ///     hqslang (str): The name of the operation in hqslang format.
+    ///     qubit (int): The qubit on which the operation is performed.
     ///
     /// Returns:
     ///     f64: The gate time.
@@ -183,6 +189,11 @@ impl ResonatorFreeDeviceWrapper {
     }
 
     /// Returns the gate time of a two qubit operation on this device.
+    ///
+    /// Args:
+    ///     hqslang (str): The name of the operation in hqslang format.
+    ///     control (int): The control qubit on which the operation is performed.
+    ///     target (int): The target qubit on which the operation is performed.
     ///
     /// Returns:
     ///     f64: The gate time.
@@ -201,6 +212,10 @@ impl ResonatorFreeDeviceWrapper {
     }
 
     /// Returns the gate time of a multi qubit operation on this device.
+    ///
+    /// Args:
+    ///     hqslang (str): The name of the operation in hqslang format.
+    ///     qubits (list[int]): The qubits on which the operation is performed.
     ///
     /// Returns:
     ///     f64: The gate time.

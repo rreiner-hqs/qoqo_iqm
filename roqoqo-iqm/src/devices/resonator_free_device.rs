@@ -43,7 +43,6 @@ impl Device for ResonatorFreeDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn single_qubit_gate_time(&self, hqslang: &str, qubit: &usize) -> Option<f64> {
         if hqslang == "RotateXY" && qubit < &self.number_qubits() {
             Some(1.0)
@@ -64,7 +63,6 @@ impl Device for ResonatorFreeDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn two_qubit_gate_time(&self, hqslang: &str, control: &usize, target: &usize) -> Option<f64> {
         if hqslang == "ControlledPauliZ"
             && self
@@ -89,7 +87,6 @@ impl Device for ResonatorFreeDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn three_qubit_gate_time(
         &self,
         _hqslang: &str,
@@ -111,7 +108,6 @@ impl Device for ResonatorFreeDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn multi_qubit_gate_time(&self, _hqslang: &str, _qubits: &[usize]) -> Option<f64> {
         None
     }
@@ -133,7 +129,6 @@ impl Device for ResonatorFreeDevice {
     ///
     /// * `Some<Array2<f64>>` - The decoherence rates.
     /// * `None` - The qubit is not part of the device.
-    ///
     fn qubit_decoherence_rates(&self, _qubit: &usize) -> Option<Array2<f64>> {
         None
     }
@@ -142,8 +137,7 @@ impl Device for ResonatorFreeDevice {
     ///
     /// # Returns
     ///
-    /// The number of qubits in the device.
-    ///
+    /// * `usize` - The number of qubits in the device.
     fn number_qubits(&self) -> usize {
         6
     }
@@ -163,8 +157,7 @@ impl Device for ResonatorFreeDevice {
     ///
     /// # Returns
     ///
-    /// A list (Vec) of pairs of qubits linked with a native two-qubit-gate in the device.
-    ///
+    /// * `Vec<(usize, usize)>` - A list (Vec) of pairs of qubits linked with a native two-qubit-gate in the device.
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
         let mut edges = vec![];
         for i in 0..5 {
@@ -182,6 +175,10 @@ impl Device for ResonatorFreeDevice {
     ///
     /// [crate::devices::GenericDevice] uses nested HashMaps to represent the most general device connectivity.
     /// The memory usage will be inefficient for devices with large qubit numbers.
+    ///
+    /// # Returns
+    ///
+    /// * `GenericDevice` - A generic device representation of the device.
     fn to_generic_device(&self) -> GenericDevice {
         let mut generic_device = GenericDevice::new(self.number_qubits());
 

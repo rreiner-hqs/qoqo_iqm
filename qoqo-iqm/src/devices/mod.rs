@@ -10,8 +10,8 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod demo_device;
-pub use demo_device::*;
+//! qoqo-iqm devices
+//!
 
 mod deneb_device;
 pub use deneb_device::*;
@@ -24,7 +24,6 @@ use pyo3::prelude::*;
 /// IQM Devices
 #[pymodule]
 pub fn iqm_devices(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<DemoDeviceWrapper>()?;
     m.add_class::<DenebDeviceWrapper>()?;
     m.add_class::<ResonatorFreeDeviceWrapper>()?;
     Ok(())

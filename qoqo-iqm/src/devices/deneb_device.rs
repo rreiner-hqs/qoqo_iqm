@@ -37,15 +37,14 @@ impl DenebDeviceWrapper {
     /// DenebDeviceWrapper instance and, if not, by invoking the to_bincode method on the object and
     /// deserializing the returned binary data.
     ///
+    /// Args:
+    ///     input (DenebDevice): The Python object that should be cast to a [roqoqo_iqm::DenebDevice]
     ///
-    /// # Arguments
+    /// Returns:
+    ///     device (DenebDevice): The resulting DenebDevice
     ///
-    /// `input` - The Python object that should be casted to a [roqoqo_iqm::DenebDevice]
-    ///
-    /// # Returns
-    ///
-    /// `Ok(DenebDevice)` - The resulting`` DenebDevcice`
-    /// `Err(PyErr)` - Something went wrong during the downcasting.
+    /// Raises:
+    ///     PyTypeError: Something went wrong during the downcasting.
     pub fn from_pyany(input: Py<PyAny>) -> PyResult<DenebDevice> {
         Python::with_gil(|py| -> PyResult<DenebDevice> {
             let input = input.as_ref(py);
@@ -81,9 +80,8 @@ impl DenebDeviceWrapper {
 
     /// Change API endpoint URL of the device
     ///
-    /// # Arguments
-    ///
-    /// `new_url` - The new URL to set.
+    /// Args:
+    ///     new_url (str): The new URL to set.
     pub fn set_endpoint_url(&mut self, new_url: String) {
         self.internal.set_endpoint_url(new_url)
     }
@@ -148,7 +146,6 @@ impl DenebDeviceWrapper {
     ///
     /// Returns:
     ///     int: The number of qubits.
-    ///
     pub fn number_qubits(&self) -> usize {
         self.internal.number_qubits()
     }
@@ -157,7 +154,6 @@ impl DenebDeviceWrapper {
     ///
     /// Returns:
     ///     str: The URL of the remote host executing the Circuits.
-    ///
     pub fn remote_host(&self) -> String {
         self.internal.remote_host()
     }
@@ -174,11 +170,18 @@ impl DenebDeviceWrapper {
     /// the undirected connectivity graph of the device.
     /// It can be used to construct the connectivity graph in a graph library of the user's
     /// choice from a list of edges and can be used for applications like routing in quantum algorithms.
+    ///
+    /// Returns:
+    ///     list[tuple[int, int]]: The list of two qubit edges.
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
         self.internal.two_qubit_edges()
     }
 
-    /// Returns the gate time of a single qubit operation on this device.
+    /// Return the gate time of a single-qubit operation on this device.
+    ///
+    /// Args:
+    ///     hqslang (str): The name of the operation in hqslang format.
+    ///     qubit (int): The qubit on which the operation is performed.
     ///
     /// Returns:
     ///     f64: The gate time.
@@ -191,7 +194,12 @@ impl DenebDeviceWrapper {
             .ok_or_else(|| PyValueError::new_err("The gate is not available on the device."))
     }
 
-    /// Returns the gate time of a two qubit operation on this device.
+    /// Return the gate time of a two-qubit operation on this device.
+    ///
+    /// Args:
+    ///     hqslang (str): The name of the operation in hqslang format.
+    ///     control (int): The control qubit on which the operation is performed.
+    ///     target (int): The target qubit on which the operation is performed.
     ///
     /// Returns:
     ///     f64: The gate time.
@@ -209,7 +217,11 @@ impl DenebDeviceWrapper {
             .ok_or_else(|| PyValueError::new_err("The gate is not available on the device."))
     }
 
-    /// Returns the gate time of a multi qubit operation on this device.
+    /// Return the gate time of a multi-qubit operation on this device.
+    ///
+    /// Args:
+    ///     hqslang (str): The name of the operation in hqslang format.
+    ///     qubits (list[int]): The qubits on which the operation is performed.
     ///
     /// Returns:
     ///     f64: The gate time.

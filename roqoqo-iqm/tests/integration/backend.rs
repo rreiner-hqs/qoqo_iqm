@@ -13,21 +13,21 @@
 use roqoqo::devices::Device;
 use roqoqo::prelude::*;
 use roqoqo::{operations::*, Circuit};
-use roqoqo_iqm::devices::DemoDevice;
+use roqoqo_iqm::devices::DenebDevice;
 use roqoqo_iqm::Backend;
 use std::env;
 use std::f64::consts::PI;
 
 #[test]
 fn init_backend() {
-    let device = DemoDevice::new();
+    let device = DenebDevice::new();
     if env::var("IQM_TOKEN").is_ok() {
         let ok = Backend::new(device.into(), None).is_ok();
         assert!(ok);
     } else {
         let ok = Backend::new(device.into(), None).is_err();
         assert!(ok);
-        let device = DemoDevice::new();
+        let device = DenebDevice::new();
         let ok = Backend::new(device.into(), Some("dummy_access_token".to_string())).is_ok();
         assert!(ok);
     }
@@ -36,11 +36,11 @@ fn init_backend() {
 #[test]
 fn test_register_initialization() {
     if env::var("IQM_TOKEN").is_ok() {
-        let device = DemoDevice::new();
+        let device = DenebDevice::new();
         let backend = Backend::new(device.into(), None).unwrap();
 
         let mut qc = Circuit::new();
-        qc += ControlledPauliZ::new(0, 2);
+        qc += CZQubitResonator::new(5, 0);
         qc += DefinitionBit::new("my_reg1".to_string(), 5, true);
         qc += DefinitionBit::new("my_reg2".to_string(), 7, true);
         qc += MeasureQubit::new(2, "my_reg1".to_string(), 2);
@@ -53,20 +53,21 @@ fn test_register_initialization() {
 
         assert_eq!(*reg2_result, expected_output);
     } else {
-        eprintln!("no IQM_TOKEN env var found.")
+        eprintln!("No IQM_TOKEN environment variable found.")
     }
 }
 
 #[test]
 fn run_circuit_single_measurements() {
     if env::var("IQM_TOKEN").is_ok() {
-        let device = DemoDevice::new();
+        let device = DenebDevice::new();
         let backend = Backend::new(device.into(), None).unwrap();
         let mut qc = Circuit::new();
 
-        qc += ControlledPauliZ::new(0, 2);
-        qc += ControlledPauliZ::new(3, 2);
         qc += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc += CZQubitResonator::new(1, 0);
+        qc += SingleExcitationStore::new(5, 0);
+        qc += SingleExcitationLoad::new(5, 0);
         qc += DefinitionBit::new("my_reg1".to_string(), 5, true);
         qc += DefinitionBit::new("my_reg2".to_string(), 7, true);
         qc += MeasureQubit::new(2, "my_reg1".to_string(), 2);
@@ -78,45 +79,52 @@ fn run_circuit_single_measurements() {
         assert!(bit_registers.contains_key("my_reg1"));
         assert!(bit_registers.contains_key("my_reg2"));
     } else {
-        eprintln!("no IQM_TOKEN env var found.")
+        eprintln!("No IQM_TOKEN environment variable found.")
     }
 }
 
 // Test a deterministic circuit with repeated measurements
-// Ignore because the Demo backend returns pseudorandom results and does not implement a simulator
 #[test]
 fn run_circuit_repeated_measurements() {
     if env::var("IQM_TOKEN").is_ok() {
-        let device = DemoDevice::new();
-        let backend = Backend::new(device.into(), None).unwrap();
+        let device = DenebDevice::new();
+        let mut backend = Backend::new(device.into(), None).unwrap();
         let mut qc = Circuit::new();
+        let number_measurements = 1000;
 
-        // Pauli X gate
         qc += RotateXY::new(0, PI.into(), 0.0.into());
-        qc += DefinitionBit::new("my_reg".to_string(), 2, true);
-        qc += PragmaRepeatedMeasurement::new("my_reg".to_string(), 10, None);
+        qc += DefinitionBit::new("my_reg".to_string(), 6, true);
+        qc += PragmaRepeatedMeasurement::new("my_reg".to_string(), 5, None);
+
+        backend._overwrite_number_of_measurements(number_measurements);
 
         let (bit_registers, _float_registers, _complex_registers) =
             backend.run_circuit(&qc).unwrap();
-        // Expected output if the backend had a simulator
-        // let expected_output = vec![vec![true, false, false, false, false]; 10];
 
         assert!(bit_registers.contains_key("my_reg"));
+
         let shots_in_results = bit_registers.get("my_reg").unwrap().len();
-        assert_eq!(shots_in_results, 10)
+        assert_eq!(shots_in_results, number_measurements);
+
+        let result = bit_registers.get("my_reg").unwrap().clone();
+
+        let number_of_true: usize = result.iter().map(|x| x[0]).filter(|&x| x).count();
+
+        let threshold = (0.9 * (number_measurements as f64)).round() as usize;
+        assert!(number_of_true > threshold);
     } else {
-        eprintln!("no IQM_TOKEN env var found.")
+        eprintln!("No IQM_TOKEN environment variable found.")
     }
 }
 
 #[test]
 #[should_panic]
 fn disconnected_qubits() {
-    let device = DemoDevice::new();
+    let device = DenebDevice::new();
     let backend = Backend::new(device.into(), None).unwrap();
     let mut qc = Circuit::new();
 
-    qc += ControlledPauliZ::new(0, 1);
+    qc += CZQubitResonator::new(1, 2);
     qc += DefinitionBit::new("my_reg".to_string(), 2, true);
     qc += PragmaRepeatedMeasurement::new("my_reg".to_string(), 10, None);
 
@@ -126,7 +134,7 @@ fn disconnected_qubits() {
 #[test]
 #[should_panic]
 fn too_many_qubits() {
-    let device = DemoDevice::new();
+    let device = DenebDevice::new();
     let number_qubits = device.number_qubits();
     let backend = Backend::new(device.into(), None).unwrap();
     let mut qc = Circuit::new();
@@ -142,12 +150,12 @@ fn too_many_qubits() {
 #[should_panic]
 fn double_measurements() {
     let mut qc = Circuit::new();
-    qc += ControlledPauliZ::new(0, 1);
+    qc += CZQubitResonator::new(0, 1);
     qc += DefinitionBit::new("ro".to_string(), 2, true);
     qc += MeasureQubit::new(0, "ro".to_string(), 0);
     qc += PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
 
-    let device = DemoDevice::new();
+    let device = DenebDevice::new();
     let backend = Backend::new(device.into(), None).unwrap();
 
     let (_bit_registers, _float_registers, _complex_registers) = backend.run_circuit(&qc).unwrap();
@@ -157,11 +165,11 @@ fn double_measurements() {
 fn test_overwrite_number_measurements() {
     if env::var("IQM_TOKEN").is_ok() {
         let mut qc = Circuit::new();
-        qc += ControlledPauliZ::new(0, 2);
+        qc += CZQubitResonator::new(0, 1);
         qc += DefinitionBit::new("ro".to_string(), 3, true);
         qc += PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
 
-        let device = DemoDevice::new();
+        let device = DenebDevice::new();
         let mut backend = Backend::new(device.into(), None).unwrap();
 
         assert!(backend.number_measurements_internal.is_none());
@@ -170,7 +178,7 @@ fn test_overwrite_number_measurements() {
 
         assert_eq!(backend.number_measurements_internal.unwrap(), 20);
     } else {
-        eprintln!("no IQM_TOKEN env var found.")
+        eprintln!("No IQM_TOKEN environment variable found.")
     }
 }
 
@@ -178,14 +186,14 @@ fn test_overwrite_number_measurements() {
 fn test_overwrite_readout_register() {
     if env::var("IQM_TOKEN").is_ok() {
         let mut qc = Circuit::new();
-        qc += ControlledPauliZ::new(0, 2);
+        qc += CZQubitResonator::new(2, 0);
         qc += RotateXY::new(0, 1.0.into(), 1.0.into());
         qc += DefinitionBit::new("ro1".to_string(), 2, true);
         qc += DefinitionBit::new("ro2".to_string(), 5, true);
         qc += MeasureQubit::new(0, "ro2".to_string(), 0);
         qc += PragmaSetNumberOfMeasurements::new(2, "ro1".to_string());
 
-        let device = DemoDevice::new();
+        let device = DenebDevice::new();
         let backend = Backend::new(device.into(), None).unwrap();
 
         let (bit_registers, _float_registers, _complex_registers) =
@@ -195,6 +203,6 @@ fn test_overwrite_readout_register() {
         let result = bit_registers.get("ro2").unwrap();
         assert_eq!(expected, *result)
     } else {
-        eprintln!("no IQM_TOKEN env var found.")
+        eprintln!("No IQM_TOKEN environment variable found.")
     }
 }
