@@ -33,18 +33,6 @@ const TIMEOUT_SECS: f64 = 60.0;
 // Time interval between REST API queries
 const SECONDS_BETWEEN_CALLS: f64 = 1.0;
 
-#[inline]
-fn _convert_qubit_name_iqm_to_qoqo(name: String) -> usize {
-    let qubit_number = name
-        .chars()
-        .last()
-        .expect("Passed empty qubit name string to conversion function.")
-        .to_digit(10)
-        .expect("Last digit of qubit name in the IQM format should be a number.");
-
-    qubit_number as usize - 1
-}
-
 type IqmMeasurementResult = HashMap<String, Vec<Vec<u16>>>;
 
 // Helper function to convert the IQM result format into the classical register format used by
@@ -57,24 +45,23 @@ fn _results_to_registers(
     output_registers: &mut HashMap<String, BitOutputRegister>,
 ) -> Result<(), RoqoqoBackendError> {
     for (reg, reg_result) in r.iter() {
-        let measured_qubits = match measured_qubits_map.get(reg) {
-            Some(x) => x,
-            None => {
-                return Err(RoqoqoBackendError::GenericError {
+        let measured_qubits =
+            measured_qubits_map
+                .get(reg)
+                .ok_or(RoqoqoBackendError::GenericError {
                     msg: "Backend results contain registers that are not present in the \
                       measured_qubits_map."
                         .to_string(),
-                })
-            }
-        };
-        let output_values = match output_registers.get_mut(reg) {
-            Some(x) => x,
-            None => return Err(RoqoqoBackendError::GenericError {
+                })?;
+
+        let output_values =
+            output_registers
+                .get_mut(reg)
+                .ok_or(RoqoqoBackendError::GenericError {
                 msg: "Backend results contain registers that are not present in the BitRegisters \
                       initialized by the Definition operations."
                     .to_string(),
-            }),
-        };
+            })?;
 
         for (i, shot_result) in reg_result.iter().enumerate() {
             for (j, qubit) in measured_qubits.iter().enumerate() {
@@ -104,13 +91,24 @@ fn _construct_headers(token: &str) -> HeaderMap {
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
-struct IqmRunData {
+struct SingleQubitMapping {
+    logical_name: String,
+    physical_name: String,
+}
+
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct IqmRunRequest {
     circuits: Vec<IqmCircuit>,
-    shots: usize,
-    // TODO
-    // calibration_set_id
-    // custom_settings
-    // qubit_mapping : Option<HashMap<String, String>>,
+    #[serde(default)]
+    custom_settings: Option<HashMap<String, String>>, // TODO: CHECK THIS
+    #[serde(default)]
+    calibration_set_id: Option<String>,
+    #[serde(default)]
+    qubit_mapping: Option<Vec<SingleQubitMapping>>,
+    shots: u16,
+    #[serde(default)]
+    max_circuit_duration_over_t2: Option<f64>,
+    heralding_mode: HeraldingMode,
 }
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -130,9 +128,21 @@ enum Status {
     PendingCompilation,
     #[serde(rename = "pending execution")]
     PendingExecution,
+    #[serde(rename = "ready")]
     Ready,
+    #[serde(rename = "failed")]
     Failed,
+    #[serde(rename = "aborted")]
     Aborted,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum HeraldingMode {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "zeros")]
+    Zeros,
 }
 
 /// Measurement results from a single circuit. For each measurement operation in the circuit, maps
@@ -144,8 +154,13 @@ type BatchResult = Vec<CircuitResult>;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct Metadata {
-    calibration_set_id: String,
-    request: IqmRunData,
+    // #[serde(default)]
+    // calibration_set_id: Option<String>,
+    request: IqmRunRequest,
+    // #[serde(default)]
+    // cocos_version: Option<String>,
+    // #[serde(default)]
+    // timestamps: Option<HashMap<String, String>>,
 }
 
 /// Representation of the HTML response from the backend.
@@ -154,12 +169,15 @@ pub struct IqmRunResult {
     /// Status of the job
     status: Status,
     /// Measurement results, if status is Ready
+    #[serde(default)]
     measurements: Option<BatchResult>,
     /// Message if status is Failed
+    #[serde(default)]
     message: Option<String>,
     /// Metadata associated with the request
     metadata: Metadata,
     /// Warnings from the IQM device
+    #[serde(default)]
     warnings: Option<Vec<String>>,
 }
 
@@ -230,26 +248,26 @@ impl Backend {
     ///
     /// # Arguments
     ///
-    /// `device` - The IQM device the Backend uses to execute operations and circuits.
-    ///
-    /// `access_token` - An access_token is required to access IQM hardware and simulators. The
-    /// access_token can either be passed as an argument, or if the argument is set to None will be
-    /// read from the environmental variable `IQM_TOKEN`.
+    /// * `device` - The IQM device the Backend uses to execute operations and circuits.
+    /// * `access_token` - An access_token is required to access IQM hardware and simulators. The
+    ///                    access_token can either be passed as an argument, or if the argument is set to None will be
+    ///                    read from the environmental variable `IQM_TOKEN`.
     ///
     /// # Returns
     ///
-    /// `Ok(Backend)` - The newly created IQM backend
-    /// `Err(RoqoqoBackendError)` - If the access token cannot be retrieved from the `IQM_TOKEN`
-    /// environment variable.
+    /// * `Ok(Backend)` - The newly created IQM backend
+    /// * `Err(RoqoqoBackendError)` - If the access token cannot be retrieved from the `IQM_TOKEN` environment variable.
     pub fn new(
         device: IqmDevice,
         access_token: Option<String>,
     ) -> Result<Self, RoqoqoBackendError> {
         let access_token_internal: String = match access_token {
             Some(s) => s,
-            None => _get_token_from_env_var().map_err(|e| {
+            None => _get_token_from_env_var().map_err(|_| {
                 RoqoqoBackendError::MissingAuthentification {
-                    msg: format!("IQM access token is missing: {}", e),
+                    msg: "IQM access token has not been passed as an argument and could \
+                         not be retrieved from the IQM_TOKEN environment variable."
+                        .to_string(),
                 }
             })?,
         };
@@ -271,15 +289,80 @@ impl Backend {
         self.number_measurements_internal = Some(number_measurements)
     }
 
+    /// Check that the device's connectivity is respected.
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit` - The [roqoqo::Circuit] to be checked
+    ///
+    /// # Returns
+    ///
+    /// *`Err(RoqoqoBackendError)` - The circuit is invalid.
+    pub fn validate_circuit_connectivity(
+        &self,
+        circuit: &Circuit,
+    ) -> Result<(), RoqoqoBackendError> {
+        let allowed_measurement_ops = [
+            "PragmaSetNumberOfMeasurements",
+            "PragmaRepeatedMeasurement",
+            "MeasureQubit",
+            "DefinitionBit",
+            "InputBit",
+        ];
+
+        for op in circuit.iter() {
+            if let Ok(inner_op) = SingleQubitOperation::try_from(op) {
+                if self
+                    .device
+                    .single_qubit_gate_time(inner_op.hqslang(), inner_op.qubit())
+                    .is_none()
+                {
+                    return Err(RoqoqoBackendError::OperationNotInBackend {
+                        backend: "IQM",
+                        hqslang: inner_op.hqslang(),
+                    });
+                }
+            } else if let Ok(inner_op) = TwoQubitOperation::try_from(op) {
+                if self
+                    .device
+                    .two_qubit_gate_time(inner_op.hqslang(), inner_op.control(), inner_op.target())
+                    .is_none()
+                {
+                    return Err(RoqoqoBackendError::OperationNotInBackend {
+                        backend: "IQM",
+                        hqslang: inner_op.hqslang(),
+                    });
+                }
+            } else if let Ok(inner_op) = MultiQubitOperation::try_from(op) {
+                if self
+                    .device
+                    .multi_qubit_gate_time(inner_op.hqslang(), inner_op.qubits())
+                    .is_none()
+                {
+                    return Err(RoqoqoBackendError::OperationNotInBackend {
+                        backend: "IQM",
+                        hqslang: inner_op.hqslang(),
+                    });
+                }
+            } else if !allowed_measurement_ops.contains(&op.hqslang()) {
+                return Err(RoqoqoBackendError::OperationNotInBackend {
+                    backend: "IQM",
+                    hqslang: op.hqslang(),
+                });
+            }
+        }
+        Ok(())
+    }
+
     /// Check if the circuit is well-defined according to the device specifications.
     ///
     /// # Arguments
     ///
-    /// `qc` - The [roqoqo::Circuit] to be checked
-    pub fn validate_circuit(&self, qc: &Circuit) -> Result<(), RoqoqoBackendError> {
+    /// * `circuit` - The [roqoqo::Circuit] to be checked
+    pub fn validate_circuit(&self, circuit: &Circuit) -> Result<(), RoqoqoBackendError> {
         // Check that the circuit doesn't contain more qubits than the device supports
         let mut measured_qubits: Vec<usize> = vec![];
-        let number_qubits = match _get_number_qubits(qc) {
+        let number_qubits = match _get_number_qubits(circuit) {
             Some(x) => x,
             None => {
                 return Err(RoqoqoBackendError::GenericError {
@@ -288,11 +371,16 @@ impl Backend {
             }
         };
 
+        if let IqmDevice::DenebDevice(device) = &self.device {
+            device.validate_circuit(circuit)?
+        } else {
+            self.validate_circuit_connectivity(circuit)?
+        }
+
         // Check that
-        // 1) The circuit respects the device's connectivity
-        // 2) Every qubit is only measured once
-        // 3) Output registers are large enough
-        for op in qc.iter() {
+        // 1) Every qubit is only measured once
+        // 2) Output registers are large enough
+        for op in circuit.iter() {
             match op {
                 Operation::MeasureQubit(o) => {
                     let qubit = *o.qubit();
@@ -307,17 +395,18 @@ impl Backend {
                 Operation::PragmaRepeatedMeasurement(o) => {
                     if !measured_qubits.is_empty() {
                         return Err(RoqoqoBackendError::GenericError {
-                           msg: "Qubits are being measured more than once. When using
-                                PragmaRepeatedMeasurement, there should not be individual qubit
-                                measurements, and the PragmaRepeatedMeasurement operation can appear only
-                                once in the circuit.".to_string(),
+                            msg: "Qubits are being measured more than once. When using \
+                                PragmaRepeatedMeasurement, there should not be individual qubit \
+                                measurements, and the PragmaRepeatedMeasurement operation can \
+                                appear only once in the circuit."
+                                .to_string(),
                         });
                     } else {
                         measured_qubits.extend(0..self.device.number_qubits())
                     }
 
                     let mut readout_length: usize = 0;
-                    for def in qc.definitions() {
+                    for def in circuit.definitions() {
                         if let Operation::DefinitionBit(reg) = def {
                             readout_length = *reg.length()
                         }
@@ -329,49 +418,9 @@ impl Backend {
                         });
                     }
                 }
-                _ => {
-                    if let Ok(inner_op) = SingleQubitOperation::try_from(op) {
-                        if self
-                            .device
-                            .single_qubit_gate_time(inner_op.hqslang(), inner_op.qubit())
-                            .is_none()
-                        {
-                            return Err(RoqoqoBackendError::OperationNotInBackend {
-                                backend: "IQM",
-                                hqslang: inner_op.hqslang(),
-                            });
-                        }
-                    } else if let Ok(inner_op) = TwoQubitOperation::try_from(op) {
-                        if self
-                            .device
-                            .two_qubit_gate_time(
-                                inner_op.hqslang(),
-                                inner_op.control(),
-                                inner_op.target(),
-                            )
-                            .is_none()
-                        {
-                            return Err(RoqoqoBackendError::OperationNotInBackend {
-                                backend: "IQM",
-                                hqslang: inner_op.hqslang(),
-                            });
-                        }
-                    } else if let Ok(inner_op) = MultiQubitOperation::try_from(op) {
-                        if self
-                            .device
-                            .multi_qubit_gate_time(inner_op.hqslang(), inner_op.qubits())
-                            .is_none()
-                        {
-                            return Err(RoqoqoBackendError::OperationNotInBackend {
-                                backend: "IQM",
-                                hqslang: inner_op.hqslang(),
-                            });
-                        }
-                    }
-                }
+                _ => (),
             }
         }
-
         Ok(())
     }
 
@@ -379,13 +428,12 @@ impl Backend {
     ///
     /// # Arguments
     ///
-    /// `id` - The job ID for the query.
+    /// * `id` - The job ID for the query.
     ///
     /// # Returns
     ///
-    /// `Ok(IqmRunResult)` - Result of the job (status can be pending).
-    /// `Err(RoqoqoBackendError)` - If something goes wrong with HTML requests or response is not
-    /// formatted correctly.
+    /// * `Ok(IqmRunResult)` - Result of the job (status can be pending).
+    /// * `Err(RoqoqoBackendError)` - If something goes wrong with HTML requests or response is not formatted correctly.
     pub fn get_results(&self, id: &str) -> Result<IqmRunResult, RoqoqoBackendError> {
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
@@ -404,12 +452,15 @@ impl Backend {
                 msg: format!("Error during GET request: {:?}", e),
             })?;
 
-        let iqm_result: IqmRunResult =
-            result
-                .json::<IqmRunResult>()
-                .map_err(|e| RoqoqoBackendError::NetworkError {
-                    msg: format!("Could not convert result into IqmRunResult: {:?}", e),
-                })?;
+        let iqm_result = result.json::<IqmRunResult>();
+        let iqm_result = match iqm_result {
+            Ok(res) => res,
+            Err(e) => {
+                return Err(RoqoqoBackendError::NetworkError {
+                    msg: format!("Error during deserialisation of GET response: {:?}", e),
+                });
+            }
+        };
 
         if iqm_result.warnings.is_some() {
             eprintln!("Warnings: {:?}", iqm_result.clone().warnings.unwrap());
@@ -432,13 +483,12 @@ impl Backend {
     ///
     /// # Arguments
     ///
-    /// `id` - The job ID for the query
+    /// * `id` - The job ID for the query
     ///
     /// # Returns
     ///
-    /// `Ok(IqmMeasurementResult)` - Result of the job if ready.
-    /// `Err(RoqoqoBackendError)` - If job failed or timed out, or if there was an error retrieving.
-    /// the results
+    /// * `Ok(IqmMeasurementResult)` - Result of the job if ready.
+    /// * `Err(RoqoqoBackendError)` - If job failed or timed out, or if there was an error retrieving. the results
     pub fn wait_for_results(&self, id: &str) -> Result<IqmMeasurementResult, RoqoqoBackendError> {
         let start_time = Instant::now();
         while start_time.elapsed().as_secs_f64() < TIMEOUT_SECS {
@@ -472,11 +522,11 @@ impl Backend {
     ///
     /// # Arguments
     ///
-    /// `id` - The ID of the job to abort.
+    /// * `id` - The ID of the job to abort.
     ///
     /// # Returns
     ///
-    /// `Err(RoqoqoBackendError)` - If the job abortion failed.
+    /// * `Err(RoqoqoBackendError)` - If the job abortion failed.
     pub fn abort_job(&self, id: &str) -> Result<(), RoqoqoBackendError> {
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
@@ -565,16 +615,21 @@ impl EvaluatingBackend for Backend {
         let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
         let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-        let (iqm_circuit, register_mapping, mut number_measurements) =
-            call_circuit(circuit, self.device.number_qubits(), &mut bit_registers)?;
+        let (iqm_circuit, register_mapping, number_measurements) = call_circuit(
+            circuit,
+            self.device.number_qubits(),
+            &mut bit_registers,
+            self.number_measurements_internal,
+        )?;
 
-        if let Some(n) = self.number_measurements_internal {
-            number_measurements = n
-        }
-
-        let data = IqmRunData {
+        let data = IqmRunRequest {
             circuits: vec![iqm_circuit],
-            shots: number_measurements,
+            shots: number_measurements as u16,
+            custom_settings: None,
+            calibration_set_id: None,
+            qubit_mapping: None,
+            max_circuit_duration_over_t2: None,
+            heralding_mode: HeraldingMode::None,
         };
 
         let client = reqwest::blocking::Client::builder()
@@ -593,14 +648,19 @@ impl EvaluatingBackend for Backend {
                 msg: format!("Error during POST request: {:?}", e),
             })?;
 
-        let status = resp.status().as_u16();
-        if status != 200_u16 {
-            return Err(RoqoqoBackendError::GenericError {
-                msg: format!(
-                    "Received an error response with HTTP status code: {}",
-                    status
-                ),
-            });
+        let status = resp.status();
+        match status {
+            reqwest::StatusCode::OK => (),
+            reqwest::StatusCode::CREATED => (),
+            reqwest::StatusCode::ACCEPTED => (),
+            _ => {
+                return Err(RoqoqoBackendError::GenericError {
+                    msg: format!(
+                        "Received an error response with HTTP status code: {}",
+                        status
+                    ),
+                });
+            }
         }
 
         let job_id: &str = &serde_json::from_str::<ResponseBody>(&resp.text().unwrap())
@@ -619,6 +679,19 @@ impl EvaluatingBackend for Backend {
 mod tests {
     use super::*;
     use std::f64::consts::PI;
+
+    #[inline]
+    fn _convert_qubit_name_iqm_to_qoqo(name: String) -> usize {
+        let qubit_number = name
+            .chars()
+            .last()
+            .expect("Passed empty qubit name string to conversion function.")
+            .to_digit(10)
+            .expect("Last digit of qubit name in the IQM format should be a number.");
+
+        qubit_number as usize - 1
+    }
+
     #[test]
     fn test_qubit_name_conversion_iqm_to_qoqo() {
         let qubit = String::from("QB2");
