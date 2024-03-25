@@ -12,8 +12,6 @@ readme = "../README.md"
 categories = ["science", "simulation"]
 description = "IQM backend for qoqo quantum computing toolkit"
 include = ["src", "qoqo_iqm", "LICENSE", "pyproject.toml", "Cargo.toml"]
-publish = ["hqs-ktra"]
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 name = "qoqo_iqm"
@@ -26,7 +24,7 @@ version = "0.20"
 features = ["num-complex"]
 
 [dependencies]
-roqoqo-iqm = {version="0.7", path="../roqoqo-iqm", registry="hqs-ktra"}
+roqoqo-iqm = {version="0.7", path="../roqoqo-iqm"}
 
 qoqo_calculator = {version="1.1"}
 qoqo_calculator_pyo3 = {version="1.1", default-features=false}

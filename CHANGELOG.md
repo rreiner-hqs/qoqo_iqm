@@ -1,6 +1,6 @@
 # Changelog
 
-This changelog track changes to the qoqo_iqm project starting at version 0.6.5 (before that it was open-source).
+This changelog tracks changes to the qoqo_iqm project starting at version 0.1.0.
 
 ## Not released
 

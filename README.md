@@ -2,9 +2,6 @@
 
 # qoqo-iqm
 
-**Note: At the moment this backend can only be used to test the connection
-to the testbed. It will NOT return data from a valid simulation of a quantum circuit.**
-
 IQM-backend for the qoqo/roqoqo quantum toolkit by [HQS Quantum Simulations](https://quantumsimulations.de).
 
 The qoqo_iqm/roqoqo-iqm packages provide backends for qoqo/roqoqo that allow the users to run quantum circuits on the IQM web API testbed.

@@ -9,7 +9,6 @@ categories = ["science", "simulation"]
 readme = "../README.md"
 description = "IQM interface for roqoqo rust quantum computing toolkit"
 include = ["src*", "Cargo.toml", "LICENSE", "README.md"]
-publish = ["hqs-ktra"]
 
 [lib]
 name = "roqoqo_iqm"
