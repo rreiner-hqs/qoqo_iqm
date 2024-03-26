@@ -5,7 +5,7 @@ maintainers = [
     { name = "HQS Quantum Simulations GmbH", email = "info@quantumsimulations.de" },
 ]
 requires-python = ">=3.8"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = ['numpy', 'qoqo_calculator_pyo3>=1.1', 'qoqo>=1.9']
 
 [project.optional-dependencies]
