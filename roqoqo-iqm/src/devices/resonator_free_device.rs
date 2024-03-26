@@ -14,42 +14,24 @@ use ndarray::Array2;
 use roqoqo::devices::{Device, GenericDevice};
 use std::cmp::{max, min};
 
-/// IQM demo environment
-///
-/// Provides endpoint that receives instructions and returns simulated results.
-/// Results are pseudo-random numbers, not actual quantum simulations.
+/// Six-qubit device similar to the Deneb device, but without the central resonator. It has a star
+/// connectivity with the sixth qubit in the center, with `ControlledPauliZ` gates available between the
+/// central qubit and all the other qubits. This device is used to compile algorithms for use on the
+/// Deneb device.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DemoDevice {
-    url: String,
-}
+pub struct ResonatorFreeDevice {}
 
-impl DemoDevice {
-    /// Create new DemoDevice with default settings.
+impl ResonatorFreeDevice {
+    /// Create new ResonatorFreeDevice with default settings.
     pub fn new() -> Self {
-        Self {
-            url: "https://demo.qc.iqm.fi/cocos/jobs".to_string(),
-        }
-    }
-
-    /// Returns API endpoint URL of the device.
-    pub fn remote_host(&self) -> String {
-        self.url.clone()
-    }
-
-    /// Change API endpoint URL of the device
-    ///
-    /// # Arguments
-    ///
-    /// `new_url` - The new URL to set.
-    pub fn set_endpoint_url(&mut self, new_url: String) {
-        self.url = new_url
+        Self {}
     }
 }
 
-/// Implements the Device trait for DemoDevice.
+/// Implements the Device trait for ResonatorFreeDevice.
 ///
 /// Defines standard functions available for roqoqo-iqm devices.
-impl Device for DemoDevice {
+impl Device for ResonatorFreeDevice {
     /// Returns the gate time of a single qubit operation if the single qubit operation is available on device.
     ///
     /// # Arguments
@@ -61,7 +43,6 @@ impl Device for DemoDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn single_qubit_gate_time(&self, hqslang: &str, qubit: &usize) -> Option<f64> {
         if hqslang == "RotateXY" && qubit < &self.number_qubits() {
             Some(1.0)
@@ -82,7 +63,6 @@ impl Device for DemoDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn two_qubit_gate_time(&self, hqslang: &str, control: &usize, target: &usize) -> Option<f64> {
         if hqslang == "ControlledPauliZ"
             && self
@@ -107,7 +87,6 @@ impl Device for DemoDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn three_qubit_gate_time(
         &self,
         _hqslang: &str,
@@ -129,7 +108,6 @@ impl Device for DemoDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn multi_qubit_gate_time(&self, _hqslang: &str, _qubits: &[usize]) -> Option<f64> {
         None
     }
@@ -151,7 +129,6 @@ impl Device for DemoDevice {
     ///
     /// * `Some<Array2<f64>>` - The decoherence rates.
     /// * `None` - The qubit is not part of the device.
-    ///
     fn qubit_decoherence_rates(&self, _qubit: &usize) -> Option<Array2<f64>> {
         None
     }
@@ -160,10 +137,9 @@ impl Device for DemoDevice {
     ///
     /// # Returns
     ///
-    /// The number of qubits in the device.
-    ///
+    /// * `usize` - The number of qubits in the device.
     fn number_qubits(&self) -> usize {
-        5
+        6
     }
 
     /// Returns the list of pairs of qubits linked with a native two-qubit-gate in the device.
@@ -181,10 +157,13 @@ impl Device for DemoDevice {
     ///
     /// # Returns
     ///
-    /// A list (Vec) of pairs of qubits linked with a native two-qubit-gate in the device.
-    ///
+    /// * `Vec<(usize, usize)>` - A list (Vec) of pairs of qubits linked with a native two-qubit-gate in the device.
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
-        vec![(0, 2), (1, 2), (2, 3), (2, 4)]
+        let mut edges = vec![];
+        for i in 0..5 {
+            edges.push((i, 5))
+        }
+        edges
     }
 
     /// Turns Device into GenericDevice
@@ -196,6 +175,10 @@ impl Device for DemoDevice {
     ///
     /// [crate::devices::GenericDevice] uses nested HashMaps to represent the most general device connectivity.
     /// The memory usage will be inefficient for devices with large qubit numbers.
+    ///
+    /// # Returns
+    ///
+    /// * `GenericDevice` - A generic device representation of the device.
     fn to_generic_device(&self) -> GenericDevice {
         let mut generic_device = GenericDevice::new(self.number_qubits());
 
@@ -235,7 +218,7 @@ impl Device for DemoDevice {
     }
 }
 
-impl Default for DemoDevice {
+impl Default for ResonatorFreeDevice {
     fn default() -> Self {
         Self::new()
     }

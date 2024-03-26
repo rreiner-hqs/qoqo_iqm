@@ -4,3 +4,8 @@ members = [
         "qoqo-iqm",
 ]
 
+resolver = "2"
+
+[profile.release]
+lto = true
+strip = true

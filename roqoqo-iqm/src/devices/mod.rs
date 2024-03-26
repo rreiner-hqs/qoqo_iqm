@@ -17,36 +17,53 @@
 use ndarray::Array2;
 use roqoqo::devices::{Device, GenericDevice};
 
-mod demo_device;
-pub use crate::devices::demo_device::DemoDevice;
+mod deneb_device;
+pub use deneb_device::DenebDevice;
+
+mod resonator_free_device;
+pub use resonator_free_device::ResonatorFreeDevice;
 
 /// Collection of IQM quantum devices
-///
-/// At the moment only supports a Demo endpoint that returns pseudorandom numbers.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum IqmDevice {
-    /// IQM demo environment
-    DemoDevice(DemoDevice),
+    /// IQM Deneb device
+    DenebDevice(DenebDevice),
+    /// Device like Deneb but without the central resonator
+    ResonatorFreeDevice(ResonatorFreeDevice),
 }
 
 impl IqmDevice {
     /// Returns the remote_host url endpoint of the device
     pub fn remote_host(&self) -> String {
         match self {
-            IqmDevice::DemoDevice(x) => x.remote_host(),
+            IqmDevice::DenebDevice(x) => x.remote_host(),
+            IqmDevice::ResonatorFreeDevice(_) => "".to_string(),
         }
     }
 }
-impl From<&DemoDevice> for IqmDevice {
-    fn from(input: &DemoDevice) -> Self {
-        Self::DemoDevice(input.clone())
+
+impl From<&DenebDevice> for IqmDevice {
+    fn from(input: &DenebDevice) -> Self {
+        Self::DenebDevice(input.clone())
     }
 }
-impl From<DemoDevice> for IqmDevice {
-    fn from(input: DemoDevice) -> Self {
-        Self::DemoDevice(input)
+impl From<DenebDevice> for IqmDevice {
+    fn from(input: DenebDevice) -> Self {
+        Self::DenebDevice(input)
     }
 }
+
+impl From<&ResonatorFreeDevice> for IqmDevice {
+    fn from(input: &ResonatorFreeDevice) -> Self {
+        Self::ResonatorFreeDevice(input.clone())
+    }
+}
+impl From<ResonatorFreeDevice> for IqmDevice {
+    fn from(input: ResonatorFreeDevice) -> Self {
+        Self::ResonatorFreeDevice(input)
+    }
+}
+
 /// Implements the Device trait for IqmDevice.
 ///
 /// Defines standard functions available for roqoqo-iqm devices.
@@ -62,10 +79,10 @@ impl Device for IqmDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn single_qubit_gate_time(&self, hqslang: &str, qubit: &usize) -> Option<f64> {
         match self {
-            IqmDevice::DemoDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
+            IqmDevice::DenebDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
+            IqmDevice::ResonatorFreeDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
         }
     }
 
@@ -81,10 +98,10 @@ impl Device for IqmDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn two_qubit_gate_time(&self, hqslang: &str, control: &usize, target: &usize) -> Option<f64> {
         match self {
-            IqmDevice::DemoDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
+            IqmDevice::DenebDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
+            IqmDevice::ResonatorFreeDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
         }
     }
 
@@ -100,7 +117,6 @@ impl Device for IqmDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn three_qubit_gate_time(
         &self,
         hqslang: &str,
@@ -109,7 +125,10 @@ impl Device for IqmDevice {
         target: &usize,
     ) -> Option<f64> {
         match self {
-            IqmDevice::DemoDevice(x) => {
+            IqmDevice::DenebDevice(x) => {
+                x.three_qubit_gate_time(hqslang, control_0, control_1, target)
+            }
+            IqmDevice::ResonatorFreeDevice(x) => {
                 x.three_qubit_gate_time(hqslang, control_0, control_1, target)
             }
         }
@@ -126,10 +145,10 @@ impl Device for IqmDevice {
     ///
     /// * `Some<f64>` - The gate time.
     /// * `None` - The gate is not available on the device.
-    ///
     fn multi_qubit_gate_time(&self, hqslang: &str, qubits: &[usize]) -> Option<f64> {
         match self {
-            IqmDevice::DemoDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
+            IqmDevice::DenebDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
+            IqmDevice::ResonatorFreeDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
         }
     }
 
@@ -150,10 +169,10 @@ impl Device for IqmDevice {
     ///
     /// * `Some<Array2<f64>>` - The decoherence rates.
     /// * `None` - The qubit is not part of the device.
-    ///
     fn qubit_decoherence_rates(&self, qubit: &usize) -> Option<Array2<f64>> {
         match self {
-            IqmDevice::DemoDevice(x) => x.qubit_decoherence_rates(qubit),
+            IqmDevice::DenebDevice(x) => x.qubit_decoherence_rates(qubit),
+            IqmDevice::ResonatorFreeDevice(x) => x.qubit_decoherence_rates(qubit),
         }
     }
 
@@ -161,11 +180,11 @@ impl Device for IqmDevice {
     ///
     /// # Returns
     ///
-    /// The number of qubits in the device.
-    ///
+    /// * `usize` - The number of qubits in the device.
     fn number_qubits(&self) -> usize {
         match self {
-            IqmDevice::DemoDevice(x) => x.number_qubits(),
+            IqmDevice::DenebDevice(x) => x.number_qubits(),
+            IqmDevice::ResonatorFreeDevice(x) => x.number_qubits(),
         }
     }
 
@@ -184,11 +203,11 @@ impl Device for IqmDevice {
     ///
     /// # Returns
     ///
-    /// A list (Vec) of pairs of qubits linked with a native two-qubit-gate in the device.
-    ///
+    /// * `Vec<(usize, usize)>` - A list (Vec) of pairs of qubits linked with a native two-qubit-gate in the device.
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
         match self {
-            IqmDevice::DemoDevice(x) => x.two_qubit_edges(),
+            IqmDevice::DenebDevice(x) => x.two_qubit_edges(),
+            IqmDevice::ResonatorFreeDevice(x) => x.two_qubit_edges(),
         }
     }
 
@@ -201,9 +220,14 @@ impl Device for IqmDevice {
     ///
     /// [crate::devices::GenericDevice] uses nested HashMaps to represent the most general device connectivity.
     /// The memory usage will be inefficient for devices with large qubit numbers.
+    ///
+    /// # Returns
+    ///
+    /// * `GenericDevice` - A generic device representation of the device.
     fn to_generic_device(&self) -> GenericDevice {
         match self {
-            IqmDevice::DemoDevice(x) => x.to_generic_device(),
+            IqmDevice::DenebDevice(x) => x.to_generic_device(),
+            IqmDevice::ResonatorFreeDevice(x) => x.to_generic_device(),
         }
     }
 }

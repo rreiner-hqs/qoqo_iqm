@@ -1,8 +1,15 @@
 # Changelog
 
-This changelog track changes to the qoqo_iqm project starting at version 0.1.0
+This changelog tracks changes to the qoqo_iqm project starting at version 0.1.0.
 
 ## Not released
+
+## 0.7.0
+
+* Refactored Backend to adapt to the new Resonance interface
+* Added DemoDevice and ResonatorFreeDevice
+* Removed DemoDevice
+* Updated integration tests to use Deneb
 
 ## 0.6.5
 

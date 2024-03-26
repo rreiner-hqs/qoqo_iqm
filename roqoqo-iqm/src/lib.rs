@@ -10,9 +10,21 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Internal roqoqo-iqm
+//!
+
+#![deny(missing_docs)]
+#![warn(rustdoc::private_intra_doc_links)]
+#![warn(rustdoc::missing_crate_level_docs)]
+#![warn(rustdoc::missing_doc_code_examples)]
+#![warn(rustdoc::private_doc_tests)]
+#![deny(missing_debug_implementations)]
+
 mod interface;
 pub use interface::{call_circuit, call_operation, IqmCircuit, IqmInstruction};
+
 mod backend;
 pub use backend::Backend;
+
 pub mod devices;
-pub use devices::{DemoDevice, IqmDevice};
+pub use devices::*;

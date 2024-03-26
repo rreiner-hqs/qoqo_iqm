@@ -29,7 +29,6 @@ use std::collections::HashMap;
 /// Provides functions to run circuits and measurements on IQM devices.
 #[pyclass(name = "Backend", module = "qoqo_iqm")]
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[pyo3(text_signature = "(device, access_token, timeout, mock_port)")]
 pub struct BackendWrapper {
     /// Internal storage of [roqoqo_iqm::Backend]
     pub internal: Backend,
@@ -45,9 +44,8 @@ impl BackendWrapper {
     /// deserializing the returned binary data.
     ///
     ///
-    /// # Arguments:
-    ///
-    /// `input` - The Python object that should be casted to a [roqoqo_iqm::Backend]
+    /// Args:
+    ///     input (Backend): The Python object that should be casted to a [roqoqo_iqm::Backend]
     pub fn from_pyany(input: Py<PyAny>) -> PyResult<Backend> {
         Python::with_gil(|py| -> PyResult<Backend> {
             let input = input.as_ref(py);
@@ -78,31 +76,36 @@ impl BackendWrapper {
     /// Args:
     ///     device (Device): IQM Device providing information about the endpoint running Circuits.
     ///     access_token (Optional[str]): Optional access token to IQM endpoints.
-    ///                                   When None access token is read from $IQM_TOKENS_FILE environmental variable
+    ///                                   When None access token is read from $IQM_TOKEN environmental variable
     ///
     /// Raises:
     ///     TypeError: Device Parameter is not IqmDevice
     ///     RuntimeError: No access token found
+    #[pyo3(text_signature = "(device, access_token)")]
     #[new]
     pub fn new(device: &PyAny, access_token: Option<String>) -> PyResult<Self> {
-        // TODO for the moment only supports conversion into DemoDevice When support for more
-        // devices is added, we should perform the conversion into the correct device type
-        let device = DemoDeviceWrapper::from_pyany(device.into()).map_err(|err| {
-            PyTypeError::new_err(format!(
-                "Device parameter cannot be cast to IqmDevice {:?}",
-                err
-            ))
-        })?;
-        let iqm_device: IqmDevice = IqmDevice::from(device);
+        let device = match DenebDeviceWrapper::from_pyany(device.into()) {
+            Ok(device) => IqmDevice::from(device),
+            Err(_) => match ResonatorFreeDeviceWrapper::from_pyany(device.into()) {
+                Ok(device) => IqmDevice::from(device),
+                Err(err) => {
+                    return Err(PyRuntimeError::new_err(format!(
+                    "Could not convert device to neither DenebDevice nor ResonatorFreeDevice: {:?}",
+                    err
+                )))
+                }
+            },
+        };
         Ok(Self {
-            internal: Backend::new(iqm_device, access_token).map_err(|err| {
+            internal: Backend::new(device, access_token).map_err(|err| {
                 PyRuntimeError::new_err(format!("No access token found {:?}", err))
             })?,
         })
     }
 
-    /// Overwrite the number of measurements that will be executed on the [qoqo::Circuit] or the
-    /// [qoqo::QuantumProgram]. The default number of measurements is the one defined in the submitted
+    /// Overwrite the number of measurements that will be executed on the [qoqo::Circuit] or the [qoqo::QuantumProgram].
+    ///
+    /// The default number of measurements is the one defined in the submitted
     /// circuits.
     ///
     /// WARNING: this function will overwrite the number of measurements set in a Circuit or
@@ -209,7 +212,6 @@ impl BackendWrapper {
     /// The results of each repetition are concatenated in OutputRegisters
     /// (List[List[bool]], List[List[float]], List[List[complex]]).  
     ///
-    ///
     /// Args:
     ///     measurement (Measurement): The measurement that is run on the backend.
     ///
@@ -311,7 +313,6 @@ impl BackendWrapper {
     }
 
     /// Evaluates expectation values of a measurement with the backend.
-    ///
     ///
     /// Args:
     ///     measurement (Measurement): The measurement that is run on the backend.

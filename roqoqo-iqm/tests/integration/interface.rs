@@ -17,27 +17,52 @@ use roqoqo::{Circuit, RoqoqoBackendError};
 use roqoqo_iqm::{call_circuit, call_operation, IqmCircuit, IqmInstruction};
 
 use std::collections::HashMap;
+use std::f64::consts::PI;
 use test_case::test_case;
 
 #[test_case(
-    operations::RotateXY::new(1, 1.0.into(), 1.0.into()).into(),
+    operations::RotateXY::new(1, PI.into(), PI.into()).into(),
     IqmInstruction {
-        name : "phased_rx".to_string(),
+        name : "prx".to_string(),
         qubits: vec!["QB2".to_string()],
         args : HashMap::from([
-            ("angle_t".to_string(), CalculatorFloat::Float(1.0)),
-            ("phase_t".to_string(), CalculatorFloat::Float(1.0))
+            ("angle_t".to_string(), CalculatorFloat::Float(0.5)),
+            ("phase_t".to_string(), CalculatorFloat::Float(0.5))
         ]),
     };
     "Phased X Rotation")]
 #[test_case(
-    operations::ControlledPauliZ::new(1,2).into(),
+        operations::ControlledPauliZ::new(1, 2).into(),
+        IqmInstruction {
+            name : "cz".to_string(),
+            qubits: vec!["QB2".to_string(), "QB3".to_string()],
+            args: HashMap::new(),
+        };
+        "Controlled Z")]
+#[test_case(
+    operations::CZQubitResonator::new(1, 0).into(),
     IqmInstruction {
         name : "cz".to_string(),
-        qubits: vec!["QB2".to_string(), "QB3".to_string()],
+        qubits: vec!["QB2".to_string(), "COMP_R".to_string()],
         args: HashMap::new(),
     };
-    "Controlled Z")]
+    "CZQubitResonator")]
+#[test_case(
+    operations::SingleExcitationLoad::new(5, 0).into(),
+    IqmInstruction {
+        name : "move".to_string(),
+        qubits: vec!["QB6".to_string(), "COMP_R".to_string()],
+        args: HashMap::new(),
+    };
+    "SingleExcitationLoad")]
+#[test_case(
+    operations::SingleExcitationStore::new(5, 0).into(),
+    IqmInstruction {
+        name : "move".to_string(),
+        qubits: vec!["QB6".to_string(), "COMP_R".to_string()],
+        args: HashMap::new(),
+    };
+    "SingleExcitationStore")]
 fn test_passing_interface(operation: operations::Operation, instruction: IqmInstruction) {
     let called = call_operation(&operation).unwrap().unwrap();
     assert_eq!(instruction, called);
@@ -60,11 +85,14 @@ fn test_call_circuit_repeated_measurement() {
 
     let mut circuit = Circuit::new();
     circuit += operations::ControlledPauliZ::new(0, 1);
-    circuit += operations::RotateXY::new(0, 1.0.into(), 1.0.into());
+    circuit += operations::RotateXY::new(0, PI.into(), PI.into());
+    circuit += operations::CZQubitResonator::new(1, 0);
+    circuit += operations::SingleExcitationStore::new(5, 0);
+    circuit += operations::SingleExcitationLoad::new(5, 0);
     circuit += operations::PragmaLoop::new(CalculatorFloat::Float(3.0), inner_circuit);
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers)
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None)
         .unwrap()
         .0;
 
@@ -74,22 +102,41 @@ fn test_call_circuit_repeated_measurement() {
         args: HashMap::new(),
     };
     let xy_instruction = IqmInstruction {
-        name: "phased_rx".to_string(),
+        name: "prx".to_string(),
         qubits: vec!["QB1".to_string()],
         args: HashMap::from([
-            ("angle_t".to_string(), CalculatorFloat::Float(1.0)),
-            ("phase_t".to_string(), CalculatorFloat::Float(1.0)),
+            ("angle_t".to_string(), CalculatorFloat::Float(0.5)),
+            ("phase_t".to_string(), CalculatorFloat::Float(0.5)),
         ]),
     };
+    let cz_qubit_resonator_instruction = IqmInstruction {
+        name: "cz".to_string(),
+        qubits: vec!["QB2".to_string(), "COMP_R".to_string()],
+        args: HashMap::new(),
+    };
+    let single_load_instruction = IqmInstruction {
+        name: "move".to_string(),
+        qubits: vec!["QB6".to_string(), "COMP_R".to_string()],
+        args: HashMap::new(),
+    };
+    let single_store_instruction = IqmInstruction {
+        name: "move".to_string(),
+        qubits: vec!["QB6".to_string(), "COMP_R".to_string()],
+        args: HashMap::new(),
+    };
     let meas_instruction = IqmInstruction {
-        name: "measurement".to_string(),
+        name: "measure".to_string(),
         qubits: vec!["QB1".to_string(), "QB2".to_string()],
         args: HashMap::from([("key".to_string(), CalculatorFloat::Str("ro".to_string()))]),
     };
 
-    let mut instruction_vec = vec![];
-    instruction_vec.push(cz_instruction.clone());
-    instruction_vec.push(xy_instruction);
+    let mut instruction_vec = vec![
+        cz_instruction.clone(),
+        xy_instruction,
+        cz_qubit_resonator_instruction,
+        single_load_instruction,
+        single_store_instruction,
+    ];
     for _ in 0..3 {
         instruction_vec.push(cz_instruction.clone());
     }
@@ -109,11 +156,11 @@ fn test_call_circuit_single_measurement() {
 
     let mut circuit = Circuit::new();
     circuit += operations::ControlledPauliZ::new(0, 1);
-    circuit += operations::RotateXY::new(0, 1.0.into(), 1.0.into());
+    circuit += operations::RotateXY::new(0, PI.into(), PI.into());
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::MeasureQubit::new(0, "ro".to_string(), 0);
     circuit += operations::MeasureQubit::new(1, "ro".to_string(), 1);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers)
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None)
         .unwrap()
         .0;
 
@@ -123,23 +170,20 @@ fn test_call_circuit_single_measurement() {
         args: HashMap::new(),
     };
     let xy_instruction = IqmInstruction {
-        name: "phased_rx".to_string(),
+        name: "prx".to_string(),
         qubits: vec!["QB1".to_string()],
         args: HashMap::from([
-            ("angle_t".to_string(), CalculatorFloat::Float(1.0)),
-            ("phase_t".to_string(), CalculatorFloat::Float(1.0)),
+            ("angle_t".to_string(), CalculatorFloat::Float(0.5)),
+            ("phase_t".to_string(), CalculatorFloat::Float(0.5)),
         ]),
     };
     let meas_instruction = IqmInstruction {
-        name: "measurement".to_string(),
+        name: "measure".to_string(),
         qubits: vec!["QB1".to_string(), "QB2".to_string()],
         args: HashMap::from([("key".to_string(), CalculatorFloat::Str("ro".to_string()))]),
     };
 
-    let mut instruction_vec = vec![];
-    instruction_vec.push(cz_instruction);
-    instruction_vec.push(xy_instruction);
-    instruction_vec.push(meas_instruction);
+    let instruction_vec = vec![cz_instruction, xy_instruction, meas_instruction];
 
     let res_expected: IqmCircuit = IqmCircuit {
         name: String::from("my_qc"),
@@ -158,7 +202,7 @@ fn test_call_circuit_repeated_measurements_with_mappping() {
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     let qubit_mapping = HashMap::from([(0, 1), (1, 0)]);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, Some(qubit_mapping));
-    let ok = call_circuit(circuit.iter(), 2, &mut bit_registers).is_ok();
+    let ok = call_circuit(circuit.iter(), 2, &mut bit_registers, None).is_ok();
 
     assert!(ok);
 }
@@ -171,7 +215,7 @@ fn test_fail_multiple_repeated_measurements() {
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::PragmaSetNumberOfMeasurements::new(5, "ro".to_string());
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, None);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers);
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None);
 
     assert!(res.is_err());
 }
@@ -184,7 +228,7 @@ fn test_fail_overlapping_measurements() {
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::MeasureQubit::new(0, "ro".to_string(), 0);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, None);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers);
+    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None);
 
     assert!(res.is_err());
 }

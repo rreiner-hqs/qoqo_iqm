@@ -1,15 +1,12 @@
-*__pycache__*
-*.~undo-tree~
-.vscode/*
-*code-workspace
+Cargo.lock
 target/*
 *__pycache__*
 *.mypy_cache*
 *.egg-info*
 *.coverage
-*/docs/generated*
 *coveragehtml/*
 */docs/_build*
+*/docs/generated*
 *.DS_Store
 *.ipynb_checkpoints*
 *.json
@@ -17,5 +14,4 @@ target/*
 .vscode/*
 *.profraw
 *.lcov
-*code-workspace
 *.so

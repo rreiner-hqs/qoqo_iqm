@@ -26,7 +26,10 @@ to the testbed. It will NOT return data from a valid simulation of a quantum cir
 """
 
 from .qoqo_iqm import *
-print("""Note: At the moment this backend can only be used to test the connection
+
+print(
+    """Note: At the moment this backend can only be used to test the connection
 to the testbed. It will NOT return data from a valid simulation of a quantum circuit.
-""")
+"""
+)
 __license__ = "Apache-2.0 for linked dependencies see qoqo_iqm/LICENSE_FOR_BINARY_DISTRIBUTION"
