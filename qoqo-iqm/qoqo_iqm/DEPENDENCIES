@@ -20620,7 +20620,7 @@ LICENSE:
 
 
 ====================================================
-qoqo-iqm 0.7.0
+qoqo-iqm 0.7.1
 https://github.com/HQSquantumsimulations/qoqo_iqm
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM backend for qoqo quantum computing toolkit
@@ -23536,7 +23536,7 @@ LICENSE:
 
 
 ====================================================
-roqoqo-iqm 0.7.0
+roqoqo-iqm 0.7.1
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM interface for roqoqo rust quantum computing toolkit
 License: Apache-2.0
