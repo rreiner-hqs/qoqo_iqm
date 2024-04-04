@@ -4,7 +4,11 @@ This changelog tracks changes to the qoqo_iqm project starting at version 0.1.0.
 
 ## Not released
 
-## 0.7.0
+## 0.8.0
+
+* Load/Store operations are no longer restricted to one qubit.
+
+## 0.7.1
 
 * Refactored Backend to adapt to the new Resonance interface
 * Added DemoDevice and ResonatorFreeDevice
