@@ -708,7 +708,7 @@ LICENSE:
 
 
 ====================================================
-autocfg 1.1.0
+autocfg 1.2.0
 https://github.com/cuviper/autocfg
 by Josh Stone <cuviper@gmail.com>
 Automatic cfg for Rust compiler features
@@ -7882,7 +7882,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-h2 0.3.25
+h2 0.3.26
 https://github.com/hyperium/h2
 by Carl Lerche <me@carllerche.com>, Sean McArthur <sean@seanmonstar.com>
 An HTTP/2 client and server
@@ -10790,7 +10790,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-itoa 1.0.10
+itoa 1.0.11
 https://github.com/dtolnay/itoa
 by David Tolnay <dtolnay@gmail.com>
 Fast integer primitive to string conversion
@@ -13137,7 +13137,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-memchr 2.7.1
+memchr 2.7.2
 https://github.com/BurntSushi/memchr
 by Andrew Gallant <jamslam@gmail.com>, bluss
 Provides extremely fast (uses SIMD on x86_64, aarch64 and wasm32) routines for
@@ -13206,7 +13206,7 @@ THE SOFTWARE.
 
 
 ====================================================
-memoffset 0.9.0
+memoffset 0.9.1
 https://github.com/Gilnaa/memoffset
 by Gilad Naaman <gilad.naaman@gmail.com>
 offset_of functionality for Rust structs.
@@ -13754,7 +13754,7 @@ THE SOFTWARE.
 
 
 ====================================================
-nalgebra 0.32.4
+nalgebra 0.32.5
 https://nalgebra.org
 by Sébastien Crozet <developer@crozet.re>
 General-purpose linear algebra library with transformations and statically-sized or dynamically-sized matrices.
@@ -16677,7 +16677,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-openssl-sys 0.9.101
+openssl-sys 0.9.102
 https://github.com/sfackler/rust-openssl
 by Alex Crichton <alex@alexcrichton.com>, Steven Fackler <sfackler@gmail.com>
 FFI bindings to OpenSSL
@@ -17891,7 +17891,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-pin-project-lite 0.2.13
+pin-project-lite 0.2.14
 https://github.com/taiki-e/pin-project-lite
 by 
 A lightweight version of pin-project written with declarative macros.
@@ -20408,7 +20408,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-qoqo 1.11.0-alpha.1
+qoqo 1.11.0-alpha.2
 https://github.com/HQSquantumsimulations/qoqo
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Quantum computing circuit toolkit. Python interface of roqoqo
@@ -20620,7 +20620,7 @@ LICENSE:
 
 
 ====================================================
-qoqo-iqm 0.7.1
+qoqo-iqm 0.8.0
 https://github.com/HQSquantumsimulations/qoqo_iqm
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM backend for qoqo quantum computing toolkit
@@ -20832,7 +20832,7 @@ LICENSE:
 
 
 ====================================================
-qoqo-macros 1.11.0-alpha.1
+qoqo-macros 1.11.0-alpha.2
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Macros for the qoqo crate
 License: Apache-2.0
@@ -23113,7 +23113,7 @@ THE SOFTWARE.
 
 
 ====================================================
-roqoqo 1.11.0-alpha.1
+roqoqo 1.11.0-alpha.2
 https://github.com/HQSquantumsimulations/qoqo
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Rust Quantum Computing Toolkit by HQS
@@ -23325,7 +23325,7 @@ LICENSE:
 
 
 ====================================================
-roqoqo-derive 1.11.0-alpha.1
+roqoqo-derive 1.11.0-alpha.2
 by HQS Quantum Simulations <info@quantumsimulations.de>
 Macros for the roqoqo crate
 License: Apache-2.0
@@ -23536,7 +23536,7 @@ LICENSE:
 
 
 ====================================================
-roqoqo-iqm 0.7.1
+roqoqo-iqm 0.8.0
 by HQS Quantum Simulations <info@quantumsimulations.de>
 IQM interface for roqoqo rust quantum computing toolkit
 License: Apache-2.0
@@ -25607,7 +25607,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-security-framework 2.9.2
+security-framework 2.10.0
 https://lib.rs/crates/security_framework
 by Steven Fackler <sfackler@gmail.com>, Kornel <kornel@geekhood.net>
 Security.framework bindings for macOS and iOS
@@ -25843,7 +25843,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-security-framework-sys 2.9.1
+security-framework-sys 2.10.0
 https://lib.rs/crates/security-framework-sys
 by Steven Fackler <sfackler@gmail.com>, Kornel <kornel@geekhood.net>
 Apple `Security.framework` low-level FFI bindings
@@ -26746,7 +26746,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-serde_json 1.0.114
+serde_json 1.0.115
 https://github.com/serde-rs/json
 by Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>
 A JSON serialization file format
@@ -28575,7 +28575,7 @@ DEALINGS IN THE SOFTWARE.
 
 
 ====================================================
-syn 2.0.55
+syn 2.0.58
 https://github.com/dtolnay/syn
 by David Tolnay <dtolnay@gmail.com>
 Parser for Rust source code
@@ -30486,7 +30486,7 @@ freely, subject to the following restrictions:
 
 
 ====================================================
-tokio 1.36.0
+tokio 1.37.0
 https://tokio.rs
 by Tokio Contributors <team@tokio.rs>
 An event-driven, non-blocking I/O platform for writing asynchronous I/O
