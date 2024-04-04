@@ -49,8 +49,7 @@ impl DenebDevice {
     /// Validate the circuit to be run for Deneb's architecture.
     ///
     /// This involves checking
-    /// 1) The device's connectivity, in particular the Load/Store operations being available only
-    /// between resonator and qubit "QB6" (i.e. qubit 5 in qoqo's indexing)
+    /// 1) The device's connectivity
     /// 2) The presence of subsequent Load operations or subsequent Store operations, which are not
     /// allowed since only a single excitation can be stored in the resonator at any time.
     ///
@@ -208,26 +207,24 @@ impl DenebDevice {
                     }
                 }
                 Operation::SingleExcitationLoad(o) => {
-                    let qubit = *o.qubit();
                     let resonator = *o.mode();
-                    if qubit != 5 || resonator != 0 {
+                    if resonator != 0 {
                         return Err(RoqoqoBackendError::GenericError {
                             msg: format!(
-                                "Invalid {} operation. Store/Load operations are only supported \
-                                between the resonator (index 0) and qubit 5.",
+                                "Wrong resonator index in operation {}. DenebDevice has a single \
+                                resonator with index 0.",
                                 op.hqslang()
                             ),
                         });
                     }
                 }
                 Operation::SingleExcitationStore(o) => {
-                    let qubit = *o.qubit();
                     let resonator = *o.mode();
-                    if qubit != 5 || resonator != 0 {
+                    if resonator != 0 {
                         return Err(RoqoqoBackendError::GenericError {
                             msg: format!(
-                                "Invalid {} operation. Store/Load operations are only supported \
-                                between the resonator (index 0) and qubit 5.",
+                                "Wrong resonator index in operation {}. DenebDevice has a single \
+                                resonator with index 0.",
                                 op.hqslang()
                             ),
                         });
@@ -301,14 +298,14 @@ impl Device for DenebDevice {
                     }
                 }
                 "SingleExcitationLoad" => {
-                    if control == &5 {
+                    if control < &self.number_qubits() {
                         Some(1.0)
                     } else {
                         None
                     }
                 }
                 "SingleExcitationStore" => {
-                    if control == &5 {
+                    if control < &self.number_qubits() {
                         Some(1.0)
                     } else {
                         None

@@ -14,10 +14,10 @@ use ndarray::Array2;
 use roqoqo::devices::{Device, GenericDevice};
 use std::cmp::{max, min};
 
-/// Six-qubit device similar to the Deneb device, but without the central resonator. It has a star
-/// connectivity with the sixth qubit in the center, with `ControlledPauliZ` gates available between the
-/// central qubit and all the other qubits. This device is used to compile algorithms for use on the
-/// Deneb device.
+/// Six-qubit device similar to the Deneb device, but without the central resonator. It has full
+/// connectivity with `ControlledPauliZ` gates available between each pair of qubits. This device is
+/// used to compile algorithms for use on the Deneb device, where the `ControlledPauliZ` gates are
+/// implemented via the central resonator.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ResonatorFreeDevice {}
 
@@ -161,7 +161,9 @@ impl Device for ResonatorFreeDevice {
     fn two_qubit_edges(&self) -> Vec<(usize, usize)> {
         let mut edges = vec![];
         for i in 0..5 {
-            edges.push((i, 5))
+            for j in 0..5 {
+                edges.push((i, j))
+            }
         }
         edges
     }
