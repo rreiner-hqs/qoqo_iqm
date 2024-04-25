@@ -23,7 +23,7 @@ use pyo3::prelude::*;
 
 /// IQM Devices
 #[pymodule]
-pub fn iqm_devices(_py: Python, m: &PyModule) -> PyResult<()> {
+pub fn iqm_devices(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<DenebDeviceWrapper>()?;
     m.add_class::<ResonatorFreeDeviceWrapper>()?;
     Ok(())
