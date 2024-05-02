@@ -201,7 +201,7 @@ impl BackendWrapper {
             .map_err(|err| PyRuntimeError::new_err(format!("Running Circuit failed {:?}", err)))
     }
 
-    /// Run all circuits corresponding to one measurement with the AQT backend.
+    /// Run all circuits corresponding to one measurement with the IQM backend.
     ///
     /// An expectation value measurement in general involves several circuits.
     /// Each circuit is passed to the backend and executed separately.
