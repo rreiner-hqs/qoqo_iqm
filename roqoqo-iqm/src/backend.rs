@@ -658,7 +658,7 @@ impl Backend {
             .https_only(true)
             .build()
             .map_err(|x| RoqoqoBackendError::NetworkError {
-                msg: format!("Could not create https client {:?}", x),
+                msg: format!("Could not create https client: {:?}", x),
             })?;
 
         let response = client
