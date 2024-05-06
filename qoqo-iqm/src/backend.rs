@@ -170,7 +170,8 @@ impl BackendWrapper {
         })
     }
 
-    /// Run a circuit with the IQM backend.
+    /// Run a circuit with the IQM backend and poll results until job is either ready, failed,
+    /// aborted or timed out.
     ///
     /// A circuit is passed to the backend and executed.
     /// During execution values are written to and read from classical registers
@@ -192,13 +193,13 @@ impl BackendWrapper {
     pub fn run_circuit(&self, circuit: &PyAny) -> PyResult<Registers> {
         let circuit = convert_into_circuit(circuit).map_err(|err| {
             PyTypeError::new_err(format!(
-                "Circuit argument cannot be converted to qoqo Circuit {:?}",
+                "Circuit argument cannot be converted to qoqo Circuit: {:?}",
                 err
             ))
         })?;
         self.internal
             .run_circuit(&circuit)
-            .map_err(|err| PyRuntimeError::new_err(format!("Running Circuit failed {:?}", err)))
+            .map_err(|err| PyRuntimeError::new_err(format!("Running Circuit failed: {:?}", err)))
     }
 
     /// Run all circuits corresponding to one measurement with the IQM backend.
@@ -222,59 +223,7 @@ impl BackendWrapper {
     ///     TypeError: Circuit argument cannot be converted to qoqo Circuit
     ///     RuntimeError: Running Circuit failed
     pub fn run_measurement_registers(&self, measurement: &PyAny) -> PyResult<Registers> {
-        let mut run_circuits: Vec<Circuit> = Vec::new();
-
-        let get_constant_circuit = measurement
-            .call_method0("constant_circuit")
-            .map_err(|err| {
-                PyTypeError::new_err(format!(
-                    "Cannot extract constant circuit from measurement {:?}",
-                    err
-                ))
-            })?;
-        let const_circuit = get_constant_circuit
-            .extract::<Option<&PyAny>>()
-            .map_err(|err| {
-                PyTypeError::new_err(format!(
-                    "Cannot extract constant circuit from measurement {:?}",
-                    err
-                ))
-            })?;
-
-        let constant_circuit = match const_circuit {
-            Some(x) => convert_into_circuit(x).map_err(|err| {
-                PyTypeError::new_err(format!(
-                    "Cannot extract constant circuit from measurement {:?}",
-                    err
-                ))
-            })?,
-            None => Circuit::new(),
-        };
-
-        let get_circuit_list = measurement.call_method0("circuits").map_err(|err| {
-            PyTypeError::new_err(format!(
-                "Cannot extract circuit list from measurement {:?}",
-                err
-            ))
-        })?;
-        let circuit_list = get_circuit_list.extract::<Vec<&PyAny>>().map_err(|err| {
-            PyTypeError::new_err(format!(
-                "Cannot extract circuit list from measurement {:?}",
-                err
-            ))
-        })?;
-
-        for c in circuit_list {
-            run_circuits.push(
-                constant_circuit.clone()
-                    + convert_into_circuit(c).map_err(|err| {
-                        PyTypeError::new_err(format!(
-                            "Cannot extract circuit of circuit list from measurement {:?}",
-                            err
-                        ))
-                    })?,
-            )
-        }
+        let run_circuits = get_circuit_list_from_measurement(measurement)?;
 
         let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
         let mut float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
@@ -283,7 +232,7 @@ impl BackendWrapper {
         for circuit in run_circuits {
             let (tmp_bit_reg, tmp_float_reg, tmp_complex_reg) =
                 self.internal.run_circuit(&circuit).map_err(|err| {
-                    PyRuntimeError::new_err(format!("Running a circuit failed {:?}", err))
+                    PyRuntimeError::new_err(format!("Running a circuit failed: {:?}", err))
                 })?;
 
             // Add results for current circuit to the total registers
@@ -345,4 +294,65 @@ impl BackendWrapper {
                 )
             })
     }
+}
+
+/// Helper function to construct the list of circuits from a measurement by appending each circuit contained in the
+/// measurement to the constant circuit.
+fn get_circuit_list_from_measurement(measurement: &PyAny) -> PyResult<Vec<Circuit>> {
+    let mut run_circuits: Vec<Circuit> = Vec::new();
+
+    let constant_circuit_pyany = measurement
+        .call_method0("constant_circuit")
+        .map_err(|err| {
+            PyTypeError::new_err(format!(
+                "Cannot extract constant circuit from measurement: {:?}",
+                err
+            ))
+        })?
+        .extract::<Option<&PyAny>>()
+        .map_err(|err| {
+            PyTypeError::new_err(format!(
+                "Cannot extract constant circuit from measurement: {:?}",
+                err
+            ))
+        })?;
+
+    let constant_circuit = match constant_circuit_pyany {
+        Some(x) => convert_into_circuit(x).map_err(|err| {
+            PyTypeError::new_err(format!(
+                "Cannot extract constant circuit from measurement: {:?}",
+                err
+            ))
+        })?,
+        None => Circuit::new(),
+    };
+
+    let circuit_list = measurement
+        .call_method0("circuits")
+        .map_err(|err| {
+            PyTypeError::new_err(format!(
+                "Cannot extract circuit list from measurement: {:?}",
+                err
+            ))
+        })?
+        .extract::<Vec<&PyAny>>()
+        .map_err(|err| {
+            PyTypeError::new_err(format!(
+                "Cannot extract circuit list from measurement: {:?}",
+                err
+            ))
+        })?;
+
+    for c in circuit_list {
+        run_circuits.push(
+            constant_circuit.clone()
+                + convert_into_circuit(c).map_err(|err| {
+                    PyTypeError::new_err(format!(
+                        "Cannot extract circuit of circuit list from measurement: {:?}",
+                        err
+                    ))
+                })?,
+        )
+    }
+    Ok(run_circuits)
 }

@@ -467,19 +467,10 @@ impl Backend {
             eprintln!("Warnings: {:?}", iqm_result.clone().warnings.unwrap());
         }
 
-        if iqm_result.status == Status::Failed {
-            return Err(RoqoqoBackendError::GenericError {
-                msg: format!(
-                    "Job FAILED with job ID: {}\nMessage: {}",
-                    id,
-                    iqm_result.message.unwrap()
-                ),
-            });
-        }
         Ok(iqm_result)
     }
 
-    /// Poll results until job is either ready, failed or timed out.
+    /// Poll results until job is either ready, failed, aborted or timed out.
     ///
     /// # Arguments
     ///
@@ -492,7 +483,6 @@ impl Backend {
     /// retrieving the results
     pub fn wait_for_results(&self, id: String) -> Result<IqmMeasurementResult, RoqoqoBackendError> {
         let empty_result_err = "IQM backend returned empty measurement results".to_string();
-        let job_failed_err = "Job has terminated with FAILED status.".to_string();
         let job_aborted_err = "Job was aborted.".to_string();
         let start_time = Instant::now();
 
@@ -519,7 +509,11 @@ impl Backend {
                 Status::Failed => {
                     // TODO maybe add dedicated errors for failed and aborted jobs in roqoqo
                     return Err(RoqoqoBackendError::GenericError {
-                        msg: job_failed_err,
+                        msg: format!(
+                            "Job FAILED with job ID: {}\nMessage: {}",
+                            id,
+                            iqm_result.message.unwrap()
+                        ),
                     });
                 }
                 Status::Aborted => {
