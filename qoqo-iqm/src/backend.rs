@@ -53,11 +53,19 @@ impl BackendWrapper {
                 Ok(try_downcast.internal)
             } else {
                 let get_bytes = input.call_method0("to_bincode").map_err(|_| {
-                PyTypeError::new_err("Python object cannot be converted to IQM Backend: Cast to binary representation failed".to_string())
-            })?;
+                    PyTypeError::new_err(
+                        "Python object cannot be converted to IQM Backend: Cast to binary \
+                         representation failed"
+                            .to_string(),
+                    )
+                })?;
                 let bytes = get_bytes.extract::<Vec<u8>>().map_err(|_| {
-                PyTypeError::new_err("Python object cannot be converted to IQM Backend: Cast to binary representation failed".to_string())
-            })?;
+                    PyTypeError::new_err(
+                        "Python object cannot be converted to IQM Backend: Cast to binary \
+                     representation failed"
+                            .to_string(),
+                    )
+                })?;
                 deserialize(&bytes[..]).map_err(|err| {
                     PyTypeError::new_err(format!(
                     "Python object cannot be converted to IQM Backend: Deserialization failed: {}",
@@ -103,7 +111,8 @@ impl BackendWrapper {
         })
     }
 
-    /// Overwrite the number of measurements that will be executed on the [qoqo::Circuit] or the [qoqo::QuantumProgram].
+    /// Overwrite the number of measurements that will be executed on the [qoqo::Circuit] or the
+    /// [qoqo::QuantumProgram].
     ///
     /// The default number of measurements is the one defined in the submitted
     /// circuits.
@@ -232,7 +241,7 @@ impl BackendWrapper {
         })
     }
 
-    /// Evaluates expectation values of a measurement with the backend.
+    /// Runs a measurement with the IQM backend and waits for results.
     ///
     /// Args:
     ///     measurement (Measurement): The measurement that is run on the backend.
@@ -242,7 +251,7 @@ impl BackendWrapper {
     ///
     /// Raises:
     ///     TypeError: Measurement evaluate function could not be used
-    ///     RuntimeError: Internal error measurement.evaluation returned unknown type
+    ///     RuntimeError: Internal error measurement. Evaluation returned unknown type
     pub fn run_measurement(&self, measurement: &PyAny) -> PyResult<Option<HashMap<String, f64>>> {
         let (bit_registers, float_registers, complex_registers) =
             self.run_measurement_registers(measurement)?;
@@ -253,7 +262,7 @@ impl BackendWrapper {
             )
             .map_err(|err| {
                 PyTypeError::new_err(format!(
-                    "Measurement `evaluate`` function could not be used: {:?}",
+                    "Measurement `evaluate` function could not be used: {:?}",
                     err
                 ))
             })?;
@@ -267,8 +276,8 @@ impl BackendWrapper {
     }
 }
 
-/// Helper function to construct the list of circuits from a measurement by appending each circuit contained in the
-/// measurement to the constant circuit.
+/// Helper function to construct the list of circuits from a measurement by appending each circuit
+/// contained in the measurement to the constant circuit.
 fn get_circuit_list_from_measurement(measurement: &PyAny) -> PyResult<Vec<Circuit>> {
     let mut run_circuits: Vec<Circuit> = Vec::new();
 

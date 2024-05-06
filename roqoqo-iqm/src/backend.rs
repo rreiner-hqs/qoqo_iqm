@@ -34,63 +34,6 @@ const TIMEOUT_SECS: f64 = 60.0;
 // Time interval between REST API queries
 const SECONDS_BETWEEN_CALLS: f64 = 1.0;
 
-type IqmMeasurementResult = HashMap<String, Vec<Vec<u16>>>;
-
-// Helper function to convert the IQM result format into the classical register format used by
-// Roqoqo. This involves changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
-// the classical output registers which have been initialized with only `false` entries.
-#[inline]
-fn _results_to_registers(
-    r: IqmMeasurementResult,
-    measured_qubits_map: HashMap<String, Vec<usize>>,
-    output_registers: &mut HashMap<String, BitOutputRegister>,
-) -> Result<(), RoqoqoBackendError> {
-    for (reg, reg_result) in r.iter() {
-        let measured_qubits =
-            measured_qubits_map
-                .get(reg)
-                .ok_or(RoqoqoBackendError::GenericError {
-                    msg: "Backend results contain registers that are not present in the \
-                      measured_qubits_map."
-                        .to_string(),
-                })?;
-
-        let output_values =
-            output_registers
-                .get_mut(reg)
-                .ok_or(RoqoqoBackendError::GenericError {
-                msg: "Backend results contain registers that are not present in the BitRegisters \
-                      initialized by the Definition operations."
-                    .to_string(),
-            })?;
-
-        for (i, shot_result) in reg_result.iter().enumerate() {
-            for (j, qubit) in measured_qubits.iter().enumerate() {
-                output_values[i][*qubit] ^= shot_result[j] != 0
-            }
-        }
-    }
-    Ok(())
-}
-
-#[inline]
-fn _construct_headers(token: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    // The purpose of this header is to allow the client to check if the server is ready to receive
-    // the request before actually sending the request data.
-    headers.insert("Expect", HeaderValue::from_str("100-Continue").unwrap());
-    headers.insert(
-        "User-Agent",
-        HeaderValue::from_str("qoqo-iqm client").unwrap(),
-    );
-    let token_header = &["Bearer", token].join(" ");
-    headers.insert(
-        "Authorization",
-        HeaderValue::from_str(token_header).unwrap(),
-    );
-    headers
-}
-
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct SingleQubitMapping {
     logical_name: String,
@@ -150,7 +93,7 @@ enum HeraldingMode {
 /// the measurement key to the corresponding results. The outer Vec elements correspond to shots,
 /// and the inner Vec elements to the qubits measured in the measurement operation and the
 /// respective outcomes.
-type CircuitResult = HashMap<String, Vec<Vec<u16>>>;
+type CircuitResult = HashMap<String, Vec<Vec<u8>>>;
 type BatchResult = Vec<CircuitResult>;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -478,10 +421,10 @@ impl Backend {
     ///
     /// # Returns
     ///
-    /// * `Ok(IqmMeasurementResult)` - Result of the job if ready.
+    /// * `Ok(CircuitResult)` - Result of the job if ready.
     /// * `Err(RoqoqoBackendError)` - If job failed, timed out or aborted, or IQM returned empty results.
     /// retrieving the results
-    pub fn wait_for_results(&self, id: String) -> Result<IqmMeasurementResult, RoqoqoBackendError> {
+    pub fn wait_for_results(&self, id: String) -> Result<CircuitResult, RoqoqoBackendError> {
         let empty_result_err = "IQM backend returned empty measurement results".to_string();
         let job_aborted_err = "Job was aborted.".to_string();
         let start_time = Instant::now();
@@ -737,7 +680,7 @@ impl EvaluatingBackend for Backend {
 
         let (job_id, register_mapping) = self.submit_circuit(circuit, &mut bit_registers)?;
 
-        let result_map: IqmMeasurementResult = self.wait_for_results(job_id)?;
+        let result_map: CircuitResult = self.wait_for_results(job_id)?;
         _results_to_registers(result_map, register_mapping, &mut bit_registers)?;
 
         Ok((bit_registers, float_registers, complex_registers))
@@ -760,6 +703,61 @@ fn _check_response_status(response: &Response) -> Result<(), RoqoqoBackendError>
         }
     }
     Ok(())
+}
+
+// Helper function to convert the IQM result format into the classical register format used by
+// Roqoqo. This involves changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
+// the classical output registers which have been initialized with only `false` entries.
+#[inline]
+fn _results_to_registers(
+    r: CircuitResult,
+    measured_qubits_map: HashMap<String, Vec<usize>>,
+    output_registers: &mut HashMap<String, BitOutputRegister>,
+) -> Result<(), RoqoqoBackendError> {
+    for (reg, reg_result) in r.iter() {
+        let measured_qubits =
+            measured_qubits_map
+                .get(reg)
+                .ok_or(RoqoqoBackendError::GenericError {
+                    msg: "Backend results contain registers that are not present in the \
+                      measured_qubits_map."
+                        .to_string(),
+                })?;
+
+        let output_values =
+            output_registers
+                .get_mut(reg)
+                .ok_or(RoqoqoBackendError::GenericError {
+                msg: "Backend results contain registers that are not present in the BitRegisters \
+                      initialized by the Definition operations."
+                    .to_string(),
+            })?;
+
+        for (i, shot_result) in reg_result.iter().enumerate() {
+            for (j, qubit) in measured_qubits.iter().enumerate() {
+                output_values[i][*qubit] ^= shot_result[j] != 0
+            }
+        }
+    }
+    Ok(())
+}
+
+#[inline]
+fn _construct_headers(token: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    // The purpose of this header is to allow the client to check if the server is ready to receive
+    // the request before actually sending the request data.
+    headers.insert("Expect", HeaderValue::from_str("100-Continue").unwrap());
+    headers.insert(
+        "User-Agent",
+        HeaderValue::from_str("qoqo-iqm client").unwrap(),
+    );
+    let token_header = &["Bearer", token].join(" ");
+    headers.insert(
+        "Authorization",
+        HeaderValue::from_str(token_header).unwrap(),
+    );
+    headers
 }
 
 #[cfg(test)]
