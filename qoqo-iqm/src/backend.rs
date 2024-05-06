@@ -17,7 +17,7 @@ use pyo3::types::PyByteArray;
 use crate::devices::*;
 use qoqo::convert_into_circuit;
 use roqoqo::prelude::*;
-use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister, Registers};
+use roqoqo::registers::Registers;
 use roqoqo::Circuit;
 use roqoqo_iqm::{Backend, IqmDevice};
 
@@ -223,42 +223,13 @@ impl BackendWrapper {
     ///     TypeError: Circuit argument cannot be converted to qoqo Circuit
     ///     RuntimeError: Running Circuit failed
     pub fn run_measurement_registers(&self, measurement: &PyAny) -> PyResult<Registers> {
-        let run_circuits = get_circuit_list_from_measurement(measurement)?;
-
-        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        let mut float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
-        let mut complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
-
-        for circuit in run_circuits {
-            let (tmp_bit_reg, tmp_float_reg, tmp_complex_reg) =
-                self.internal.run_circuit(&circuit).map_err(|err| {
-                    PyRuntimeError::new_err(format!("Running a circuit failed: {:?}", err))
-                })?;
-
-            // Add results for current circuit to the total registers
-            for (key, mut val) in tmp_bit_reg.into_iter() {
-                if let Some(x) = bit_registers.get_mut(&key) {
-                    x.append(&mut val);
-                } else {
-                    let _ = bit_registers.insert(key, val);
-                }
-            }
-            for (key, mut val) in tmp_float_reg.into_iter() {
-                if let Some(x) = float_registers.get_mut(&key) {
-                    x.append(&mut val);
-                } else {
-                    let _ = float_registers.insert(key, val);
-                }
-            }
-            for (key, mut val) in tmp_complex_reg.into_iter() {
-                if let Some(x) = complex_registers.get_mut(&key) {
-                    x.append(&mut val);
-                } else {
-                    let _ = complex_registers.insert(key, val);
-                }
-            }
-        }
-        Ok((bit_registers, float_registers, complex_registers))
+        let circuit_list = get_circuit_list_from_measurement(measurement)?;
+        self.internal.run_circuit_list(circuit_list).map_err(|err| {
+            PyRuntimeError::new_err(format!(
+                "Something went wrong when running the list of circuits: {:?}",
+                err
+            ))
+        })
     }
 
     /// Evaluates expectation values of a measurement with the backend.
@@ -282,7 +253,7 @@ impl BackendWrapper {
             )
             .map_err(|err| {
                 PyTypeError::new_err(format!(
-                    "Measurement evaluate function could not be used: {:?}",
+                    "Measurement `evaluate`` function could not be used: {:?}",
                     err
                 ))
             })?;
@@ -290,7 +261,7 @@ impl BackendWrapper {
             .extract::<Option<HashMap<String, f64>>>()
             .map_err(|_| {
                 PyRuntimeError::new_err(
-                    "Internal error measurement.evaluation returned unknown type",
+                    "Internal error measurement. Evaluation returned unknown type.",
                 )
             })
     }

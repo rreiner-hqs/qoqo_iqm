@@ -17,7 +17,7 @@ use reqwest::blocking::Response;
 use roqoqo::backends::{EvaluatingBackend, RegisterResult};
 use roqoqo::devices::Device;
 use roqoqo::operations::*;
-use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister};
+use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister, Registers};
 use roqoqo::{Circuit, RoqoqoBackendError};
 
 use std::collections::HashMap;
@@ -672,6 +672,53 @@ impl Backend {
             .to_string();
 
         Ok((job_id, register_mapping))
+    }
+
+    /// Run a list of circuits on the backend and wait for results.
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit_list` - The list of circuits to be run.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Registers)` - The bit, float and complex registers containing the results.
+    /// `Err(RoqoqoBackendError)` - Transparent propagation of errors.
+    pub fn run_circuit_list(
+        &self,
+        circuit_list: Vec<Circuit>,
+    ) -> Result<Registers, RoqoqoBackendError> {
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        let mut float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+        let mut complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+
+        for circuit in circuit_list {
+            let (tmp_bit_reg, tmp_float_reg, tmp_complex_reg) = self.run_circuit(&circuit)?;
+
+            // Add results for current circuit to the total registers
+            for (key, mut val) in tmp_bit_reg.into_iter() {
+                if let Some(x) = bit_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = bit_registers.insert(key, val);
+                }
+            }
+            for (key, mut val) in tmp_float_reg.into_iter() {
+                if let Some(x) = float_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = float_registers.insert(key, val);
+                }
+            }
+            for (key, mut val) in tmp_complex_reg.into_iter() {
+                if let Some(x) = complex_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = complex_registers.insert(key, val);
+                }
+            }
+        }
+        Ok((bit_registers, float_registers, complex_registers))
     }
 }
 
