@@ -12,9 +12,7 @@
 
 use ndarray::Array2;
 use roqoqo::devices::{Device, GenericDevice};
-use roqoqo::operations::{Operation, SingleQubitOperation};
-use roqoqo::prelude::*;
-use roqoqo::{Circuit, RoqoqoBackendError};
+use std::cmp::{max, min};
 
 /// IQM Garnet device
 ///
@@ -86,8 +84,8 @@ impl Device for GarnetDevice {
     fn two_qubit_gate_time(&self, hqslang: &str, control: &usize, target: &usize) -> Option<f64> {
         if hqslang == "ControlledPauliZ"
             && self
-            .two_qubit_edges()
-            .contains(&(min(*control, *target), max(*control, *target)))
+                .two_qubit_edges()
+                .contains(&(min(*control, *target), max(*control, *target)))
         {
             Some(1.0)
         } else {
@@ -243,7 +241,7 @@ impl Device for GarnetDevice {
                     "ControlledPauliZ",
                     qb1,
                     qb2,
-                    self.two_qubit_gate_time("ControlledPauliZ", qb1, qb2)
+                    self.two_qubit_gate_time("ControlledPauliZ", &qb1, &qb2)
                         .unwrap(),
                 )
                 .expect("Unexpectedly failed to add two-qubit gate time to generic device.");
@@ -253,7 +251,7 @@ impl Device for GarnetDevice {
                     "ControlledPauliZ",
                     qb2,
                     qb1,
-                    self.two_qubit_gate_time("ControlledPauliZ", qb2, qb1)
+                    self.two_qubit_gate_time("ControlledPauliZ", &qb2, &qb1)
                         .unwrap(),
                 )
                 .expect("Unexpectedly failed to add two-qubit gate time to generic device.");
@@ -266,13 +264,4 @@ impl Default for GarnetDevice {
     fn default() -> Self {
         Self::new()
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use roqoqo::operations::{
-        DefinitionBit, InputBit, RotateXY,
-    };
-
 }
