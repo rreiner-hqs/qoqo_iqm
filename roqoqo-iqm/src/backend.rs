@@ -660,11 +660,7 @@ impl EvaluatingBackend for Backend {
         let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
         let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-        let (job_id, register_mapping) =
-            self.submit_circuit(circuit, &mut bit_registers)
-                .map_err(|err| RoqoqoBackendError::GenericError {
-                    msg: err.to_string(),
-                })?;
+        let (job_id, register_mapping) = self.submit_circuit(circuit, &mut bit_registers)?;
 
         let result_map: CircuitResult =
             self.wait_for_results(job_id)
