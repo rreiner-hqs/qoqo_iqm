@@ -49,8 +49,7 @@ impl GarnetDevice {
 ///
 /// Defines standard functions available for roqoqo-iqm devices.
 impl Device for GarnetDevice {
-    /// Returns the gate time of a single-qubit operation if the single-qubit operation is available
-    /// on device.
+    /// Returns the gate time of a one-qubit operation if the operation is available on device.
     ///
     /// # Arguments
     ///
@@ -93,7 +92,7 @@ impl Device for GarnetDevice {
         }
     }
 
-    /// Returns the gate time of a three qubit operation if the three qubit operation is available on device.
+    /// Returns the gate time of a three-qubit operation if the three-qubit operation is available on device.
     ///
     /// # Arguments
     ///
@@ -115,7 +114,7 @@ impl Device for GarnetDevice {
         None
     }
 
-    /// Returns the gate time of a multi qubit operation if the multi qubit operation is available on device.
+    /// Returns the gate time of a multi-qubit operation if the multi-qubit operation is available on device.
     ///
     /// # Arguments
     ///
@@ -155,7 +154,7 @@ impl Device for GarnetDevice {
     ///
     /// # Returns
     ///
-    /// The number of qubits in the device.
+    /// * `usize`- The number of qubits in the device.
     fn number_qubits(&self) -> usize {
         20
     }

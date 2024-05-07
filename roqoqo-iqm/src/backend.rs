@@ -423,7 +423,6 @@ impl Backend {
     ///
     /// * `Ok(CircuitResult)` - Result of the job if ready.
     /// * `Err(RoqoqoBackendError)` - If job failed, timed out or aborted, or IQM returned empty results.
-    /// retrieving the results
     pub fn wait_for_results(&self, id: String) -> Result<CircuitResult, RoqoqoBackendError> {
         let empty_result_err = "IQM backend returned empty measurement results".to_string();
         let job_aborted_err = "Job was aborted.".to_string();
@@ -687,6 +686,7 @@ impl EvaluatingBackend for Backend {
     }
 }
 
+/// Checks the status of the endpoint response after submission.
 fn _check_response_status(response: &Response) -> Result<(), RoqoqoBackendError> {
     let status = response.status();
     match status {
