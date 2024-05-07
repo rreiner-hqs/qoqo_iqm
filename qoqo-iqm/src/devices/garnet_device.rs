@@ -31,7 +31,7 @@ pub struct GarnetDeviceWrapper {
 impl GarnetDeviceWrapper {
     /// Extracts a GarnetDevice from a GarnetDeviceWrapper python object.
     ///
-    /// When working with qoqo and other rust based python packages compiled separately a downcast
+    /// When working with qoqo and other rust-based python packages compiled separately, a downcast
     /// will not detect that two GarnetDeviceWrapper objects are compatible. This function tries to
     /// convert a Python object into a GarnetDevice instance by first checking if the object is a
     /// GarnetDeviceWrapper instance and, if not, by invoking the to_bincode method on the object and
@@ -166,7 +166,7 @@ impl GarnetDeviceWrapper {
     /// The two-qubit-gate also has to form a universal set together with the available
     /// single qubit gates.
     ///
-    /// The returned vectors is a simple, graph-library independent, representation of
+    /// The returned vector is a simple, graph-library independent, representation of
     /// the undirected connectivity graph of the device.
     /// It can be used to construct the connectivity graph in a graph library of the user's
     /// choice from a list of edges and can be used for applications like routing in quantum algorithms.
