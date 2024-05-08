@@ -40,7 +40,7 @@ pub enum IqmBackendError {
         /// Job ID
         id: String,
     },
-    /// Abortion of a job has failed.
+    /// Abortion of a job has failed
     #[error("Could not abort job with ID {id}: {msg}")]
     JobAbortionFailed {
         /// Job ID
@@ -48,13 +48,13 @@ pub enum IqmBackendError {
         /// Abort response from the endpoint
         msg: String,
     },
-    /// Result returned by IQM is empty.
+    /// Result returned by IQM is empty
     #[error("IQM has returned an empty result for job with ID {id}.")]
     EmptyResult {
         /// Job ID
         id: String,
     },
-    /// Circuit passed to the backend is empty.
+    /// Circuit passed to the backend is empty
     #[error("An empty circuit was passed to the backend.")]
     EmptyCircuit,
     /// A qubit is being measured multiple times in the qoqo circuit provided.
@@ -69,7 +69,7 @@ pub enum IqmBackendError {
         /// Name of the readout register
         name: String,
     },
-    /// Circuit passed to the backend is invalid.
+    /// Circuit passed to the backend is invalid
     #[error("{msg}")]
     InvalidCircuit {
         /// Message

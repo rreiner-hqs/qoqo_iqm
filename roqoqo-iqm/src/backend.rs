@@ -21,7 +21,7 @@ use roqoqo::operations::*;
 use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister, Registers};
 use roqoqo::{Circuit, RoqoqoBackendError};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::env::var;
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -418,27 +418,23 @@ impl Backend {
     ///
     /// # Returns
     ///
-    /// * `Ok(CircuitResult)` - Result of the job if ready.
-    /// * `Err(RoqoqoBackendError)` - If job failed, timed out or aborted, or IQM returned empty results.
-    pub fn wait_for_results(&self, id: String) -> Result<CircuitResult, IqmBackendError> {
+    /// * `Ok(BatchResult)` - Result of the job if ready.
+    /// * `Err(IqmBackendError)` - If job failed, timed out or aborted, or IQM returned empty results.
+    pub fn wait_for_results(&self, id: String) -> Result<BatchResult, IqmBackendError> {
         let start_time = Instant::now();
 
         while start_time.elapsed().as_secs_f64() < TIMEOUT_SECS {
             let iqm_result: IqmRunResult = self.get_results(id.clone())?;
             match iqm_result.status {
                 Status::Ready => {
-                    match iqm_result.measurements {
-                        Some(x) => match x.first() {
-                            Some(y) => return Ok(y.clone()),
-                            None => return Err(IqmBackendError::EmptyResult { id }),
-                        },
-                        None => return Err(IqmBackendError::EmptyResult { id }),
-                    };
+                    return iqm_result
+                        .measurements
+                        .ok_or(IqmBackendError::EmptyResult { id })
                 }
                 Status::Failed => {
                     let msg = iqm_result.message.expect(
                         "Job has failed but response message is
-                                 empty. Something went wrong on the server side.",
+                         empty. Something went wrong on the server side.",
                     );
                     return Err(IqmBackendError::JobFailed { id, msg });
                 }
@@ -537,32 +533,54 @@ impl Backend {
         }
     }
 
-    /// Submit a circuit to be executed on the IQM platform.
+    /// Submit a circuit batch to be executed on the IQM platform.
     ///
     /// # Arguments
     ///
-    /// * `circuit` - The circuit to be submitted.
+    /// * `circuit_list` - The circuits to be submitted.
     /// * `bit_registers` - Mutable reference to the output registers.
     ///
     /// # Returns
     ///
     /// * `Ok(String, RegisterMapping)` - Job ID and mapping of measured qubits to register indices.
     /// * `Err(RoqoqoBackendError::NetworkError)` - Something went wrong when submitting the job.
-    pub fn submit_circuit<'a>(
+    pub fn submit_circuit_batch(
         &self,
-        circuit: impl Iterator<Item = &'a Operation>,
+        circuit_list: Vec<Circuit>,
         bit_registers: &mut HashMap<String, BitOutputRegister>,
-    ) -> Result<(String, RegisterMapping), RoqoqoBackendError> {
-        let (iqm_circuit, register_mapping, number_measurements) = call_circuit(
-            circuit,
-            self.device.number_qubits(),
-            bit_registers,
-            self.number_measurements_internal,
-        )?;
+    ) -> Result<(String, RegisterMapping), IqmBackendError> {
+        let mut circuits = vec![];
+        let mut number_measurements_set = HashSet::new();
+
+        for circuit in circuit_list.into_iter() {
+            let (iqm_circuit, register_mapping, number_measurements) = call_circuit(
+                circuit.iter(),
+                self.device.number_qubits(),
+                bit_registers,
+                self.number_measurements_internal,
+            )?;
+
+            circuits.push(iqm_circuit);
+            number_measurements_set.insert(number_measurements);
+        }
+
+        if number_measurements_set.len() != 1 {
+            return Err(IqmBackendError::InvalidCircuit {
+                msg:
+                    "Circuits in the circuit batch have different numbers of measurements, which is
+                      not allowed by the backend."
+                        .to_string(),
+            });
+        }
+
+        let number_measurements = number_measurements_set
+            .iter()
+            .next()
+            .expect("Number measurements set is unexpectedly empty.");
 
         let data = IqmRunRequest {
-            circuits: vec![iqm_circuit],
-            shots: number_measurements as u16,
+            circuits,
+            shots: *number_measurements as u16,
             custom_settings: None,
             calibration_set_id: None,
             qubit_mapping: None,
@@ -594,6 +612,29 @@ impl Backend {
             .to_string();
 
         Ok((job_id, register_mapping))
+    }
+
+    /// Submit a circuit to be executed on the IQM platform.
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit` - The circuit to be submitted.
+    /// * `bit_registers` - Mutable reference to the output registers.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String, RegisterMapping)` - Job ID and mapping of measured qubits to register indices.
+    /// * `Err(RoqoqoBackendError::NetworkError)` - Something went wrong when submitting the job.
+    pub fn submit_circuit<'a>(
+        &self,
+        circuit: impl Iterator<Item = &'a Operation>,
+        bit_registers: &mut HashMap<String, BitOutputRegister>,
+    ) -> Result<(String, RegisterMapping), RoqoqoBackendError> {
+        let circuit: Circuit = circuit.into_iter().cloned().collect();
+        self.submit_circuit_batch(vec![circuit], bit_registers)
+            .map_err(|err| RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
+            })
     }
 
     /// Run a list of circuits on the backend and wait for results.
@@ -662,13 +703,18 @@ impl EvaluatingBackend for Backend {
 
         let (job_id, register_mapping) = self.submit_circuit(circuit, &mut bit_registers)?;
 
-        let result_map: CircuitResult =
-            self.wait_for_results(job_id)
-                .map_err(|err| RoqoqoBackendError::GenericError {
-                    msg: err.to_string(),
-                })?;
+        let result: CircuitResult = self
+            .wait_for_results(job_id)
+            .map_err(|err| RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
+            })?
+            .into_iter()
+            .next()
+            .ok_or(RoqoqoBackendError::GenericError {
+                msg: "Backend returned empty list of CircuitResults.".to_string(),
+            })?;
 
-        _results_to_registers(result_map, register_mapping, &mut bit_registers).map_err(|err| {
+        _results_to_registers(result, register_mapping, &mut bit_registers).map_err(|err| {
             RoqoqoBackendError::GenericError {
                 msg: err.to_string(),
             }
@@ -697,33 +743,49 @@ fn _check_response_status(response: &Response) -> Result<(), RoqoqoBackendError>
     Ok(())
 }
 
-// Helper function to convert the IQM result format into the classical register format used by
-// Roqoqo. This involves changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
-// the classical output registers which have been initialized with only `false` entries.
+/// Helper function to convert the IQM result format into the classical register format used by
+/// Roqoqo. This involves changing 1 to `true` and 0 to `false`, and replacing the corresponding
+/// entry in the classical output registers which have been initialized with only `false` entries.
+///
+/// # Arguments
+///
+/// * `result` - The result to be processed.
+/// * `measured_qubits_map` - HashMap that maps each output register name to the list of qubits that
+///    have been measured to that register.
+/// * `output_registers` - Mutable reference to the output registers on which to write the processed
+///    results.
+///
+/// # Returns
+///
+/// `Err(RoqoqoBackendError)` - Something went wrong with the postprocessing.
 #[inline]
 fn _results_to_registers(
-    r: CircuitResult,
+    result: CircuitResult,
     measured_qubits_map: HashMap<String, Vec<usize>>,
     output_registers: &mut HashMap<String, BitOutputRegister>,
 ) -> Result<(), IqmBackendError> {
-    for (reg, reg_result) in r.iter() {
-        let measured_qubits = measured_qubits_map
-            .get(reg)
-            .ok_or(RoqoqoBackendError::GenericError {
-                msg: "Backend results contain registers that are not present in the \
-                      measured_qubits_map."
-                    .to_string(),
-            })
-            .map_err(IqmBackendError::RoqoqoBackendError)?;
+    for (reg, reg_result) in result.iter() {
+        let measured_qubits =
+            measured_qubits_map
+                .get(reg)
+                .ok_or(IqmBackendError::RoqoqoBackendError(
+                    RoqoqoBackendError::GenericError {
+                        msg: "Backend results contain registers that are not present in the \
+                              measured_qubits_map."
+                            .to_string(),
+                    },
+                ))?;
 
-        let output_values = output_registers
-            .get_mut(reg)
-            .ok_or(RoqoqoBackendError::GenericError {
-                msg: "Backend results contain registers that are not present in the BitRegisters \
-                      initialized by the Definition operations."
-                    .to_string(),
-            })
-            .map_err(IqmBackendError::RoqoqoBackendError)?;
+        let output_values =
+            output_registers
+                .get_mut(reg)
+                .ok_or(IqmBackendError::RoqoqoBackendError(
+                    RoqoqoBackendError::GenericError {
+                        msg: "Backend results contain registers that are not present in the \
+                              BitRegisters initialized by the Definition operations."
+                            .to_string(),
+                    },
+                ))?;
 
         for (i, shot_result) in reg_result.iter().enumerate() {
             for (j, qubit) in measured_qubits.iter().enumerate() {
