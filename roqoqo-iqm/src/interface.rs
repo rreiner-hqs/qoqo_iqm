@@ -62,7 +62,7 @@ pub struct IqmInstruction {
 // HashMap that associates to each register name the indices in the register that are being affected
 // by measurements. These indices are saved in the order in which the measurement operations appear
 // in the circuit, since this is the order in which the backend returns the results.
-type RegisterMapping = HashMap<String, Vec<usize>>;
+pub(crate) type RegisterMapping = HashMap<String, Vec<usize>>;
 
 /// Converts all operations in a [roqoqo::Circuit] into instructions for IQM Hardware or IQM Simulators
 ///

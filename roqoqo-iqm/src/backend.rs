@@ -11,12 +11,14 @@
 // limitations under the License.
 
 use crate::devices::IqmDevice;
-use crate::interface::{call_circuit, IqmCircuit};
+use crate::interface::{call_circuit, IqmCircuit, RegisterMapping};
+use crate::IqmBackendError;
 
+use reqwest::blocking::Response;
 use roqoqo::backends::{EvaluatingBackend, RegisterResult};
 use roqoqo::devices::Device;
 use roqoqo::operations::*;
-use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister};
+use roqoqo::registers::{BitOutputRegister, ComplexOutputRegister, FloatOutputRegister, Registers};
 use roqoqo::{Circuit, RoqoqoBackendError};
 
 use std::collections::HashMap;
@@ -32,63 +34,6 @@ use serde::{Deserialize, Serialize};
 const TIMEOUT_SECS: f64 = 60.0;
 // Time interval between REST API queries
 const SECONDS_BETWEEN_CALLS: f64 = 1.0;
-
-type IqmMeasurementResult = HashMap<String, Vec<Vec<u16>>>;
-
-// Helper function to convert the IQM result format into the classical register format used by
-// Roqoqo. This involved changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
-// the classical output registers which have been initialized with only `false` entries.
-#[inline]
-fn _results_to_registers(
-    r: IqmMeasurementResult,
-    measured_qubits_map: HashMap<String, Vec<usize>>,
-    output_registers: &mut HashMap<String, BitOutputRegister>,
-) -> Result<(), RoqoqoBackendError> {
-    for (reg, reg_result) in r.iter() {
-        let measured_qubits =
-            measured_qubits_map
-                .get(reg)
-                .ok_or(RoqoqoBackendError::GenericError {
-                    msg: "Backend results contain registers that are not present in the \
-                      measured_qubits_map."
-                        .to_string(),
-                })?;
-
-        let output_values =
-            output_registers
-                .get_mut(reg)
-                .ok_or(RoqoqoBackendError::GenericError {
-                msg: "Backend results contain registers that are not present in the BitRegisters \
-                      initialized by the Definition operations."
-                    .to_string(),
-            })?;
-
-        for (i, shot_result) in reg_result.iter().enumerate() {
-            for (j, qubit) in measured_qubits.iter().enumerate() {
-                output_values[i][*qubit] ^= shot_result[j] != 0
-            }
-        }
-    }
-    Ok(())
-}
-
-#[inline]
-fn _construct_headers(token: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    // The purpose of this header is to allow the client to check if the server is ready to receive
-    // the request before actually sending the request data.
-    headers.insert("Expect", HeaderValue::from_str("100-Continue").unwrap());
-    headers.insert(
-        "User-Agent",
-        HeaderValue::from_str("qoqo-iqm client").unwrap(),
-    );
-    let token_header = &["Bearer", token].join(" ");
-    headers.insert(
-        "Authorization",
-        HeaderValue::from_str(token_header).unwrap(),
-    );
-    headers
-}
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct SingleQubitMapping {
@@ -149,7 +94,7 @@ enum HeraldingMode {
 /// the measurement key to the corresponding results. The outer Vec elements correspond to shots,
 /// and the inner Vec elements to the qubits measured in the measurement operation and the
 /// respective outcomes.
-type CircuitResult = HashMap<String, Vec<Vec<u16>>>;
+type CircuitResult = HashMap<String, Vec<Vec<u8>>>;
 type BatchResult = Vec<CircuitResult>;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
@@ -359,16 +304,12 @@ impl Backend {
     /// # Arguments
     ///
     /// * `circuit` - The [roqoqo::Circuit] to be checked
-    pub fn validate_circuit(&self, circuit: &Circuit) -> Result<(), RoqoqoBackendError> {
+    pub fn validate_circuit(&self, circuit: &Circuit) -> Result<(), IqmBackendError> {
         // Check that the circuit doesn't contain more qubits than the device supports
         let mut measured_qubits: Vec<usize> = vec![];
         let number_qubits = match _get_number_qubits(circuit) {
             Some(x) => x,
-            None => {
-                return Err(RoqoqoBackendError::GenericError {
-                    msg: "Empty circuit was passed to the backend.".to_string(),
-                })
-            }
+            None => return Err(IqmBackendError::EmptyCircuit),
         };
 
         if let IqmDevice::DenebDevice(device) = &self.device {
@@ -385,8 +326,8 @@ impl Backend {
                 Operation::MeasureQubit(o) => {
                     let qubit = *o.qubit();
                     if measured_qubits.contains(&qubit) {
-                        return Err(RoqoqoBackendError::GenericError {
-                            msg: format!("Qubit {} is being measured more than once.", &qubit),
+                        return Err(IqmBackendError::QubitMeasuredMultipleTimes {
+                            msg: format!("Qubit {} is being measured multiple times.", qubit),
                         });
                     } else {
                         measured_qubits.push(qubit)
@@ -394,7 +335,7 @@ impl Backend {
                 }
                 Operation::PragmaRepeatedMeasurement(o) => {
                     if !measured_qubits.is_empty() {
-                        return Err(RoqoqoBackendError::GenericError {
+                        return Err(IqmBackendError::QubitMeasuredMultipleTimes {
                             msg: "Qubits are being measured more than once. When using \
                                 PragmaRepeatedMeasurement, there should not be individual qubit \
                                 measurements, and the PragmaRepeatedMeasurement operation can \
@@ -413,8 +354,8 @@ impl Backend {
                     }
 
                     if number_qubits > readout_length {
-                        return Err(RoqoqoBackendError::GenericError {
-                            msg: format!("Readout register {} is not large enough.", o.readout()),
+                        return Err(IqmBackendError::RegisterTooSmall {
+                            name: o.readout().to_string(),
                         });
                     }
                 }
@@ -434,7 +375,7 @@ impl Backend {
     ///
     /// * `Ok(IqmRunResult)` - Result of the job (status can be pending).
     /// * `Err(RoqoqoBackendError)` - If something goes wrong with HTML requests or response is not formatted correctly.
-    pub fn get_results(&self, id: &str) -> Result<IqmRunResult, RoqoqoBackendError> {
+    pub fn get_results(&self, id: String) -> Result<IqmRunResult, RoqoqoBackendError> {
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
             .build()
@@ -442,7 +383,7 @@ impl Backend {
                 msg: format!("could not create https client {:?}", x),
             })?;
 
-        let job_url = self.device.remote_host() + "/" + id;
+        let job_url = self.device.remote_host() + "/" + &id;
 
         let result = client
             .get(job_url)
@@ -466,56 +407,53 @@ impl Backend {
             eprintln!("Warnings: {:?}", iqm_result.clone().warnings.unwrap());
         }
 
-        if iqm_result.status == Status::Failed {
-            return Err(RoqoqoBackendError::GenericError {
-                msg: format!(
-                    "Job FAILED with job ID: {}\nMessage: {}",
-                    id,
-                    iqm_result.message.unwrap()
-                ),
-            });
-        }
-
         Ok(iqm_result)
     }
 
-    /// Poll results until job is either ready, failed or timed out.
+    /// Poll results until job is either ready, failed, aborted or timed out.
     ///
     /// # Arguments
     ///
-    /// * `id` - The job ID for the query
+    /// * `id` - The job ID for the query"Job failed with job ID: {}"
     ///
     /// # Returns
     ///
-    /// * `Ok(IqmMeasurementResult)` - Result of the job if ready.
-    /// * `Err(RoqoqoBackendError)` - If job failed or timed out, or if there was an error retrieving. the results
-    pub fn wait_for_results(&self, id: &str) -> Result<IqmMeasurementResult, RoqoqoBackendError> {
+    /// * `Ok(CircuitResult)` - Result of the job if ready.
+    /// * `Err(RoqoqoBackendError)` - If job failed, timed out or aborted, or IQM returned empty results.
+    pub fn wait_for_results(&self, id: String) -> Result<CircuitResult, IqmBackendError> {
         let start_time = Instant::now();
+
         while start_time.elapsed().as_secs_f64() < TIMEOUT_SECS {
-            let iqm_result: IqmRunResult = self.get_results(id)?;
-            if iqm_result.status == Status::Ready {
-                match iqm_result.measurements {
-                    Some(x) => match x.first() {
-                        Some(y) => return Ok(y.clone()),
-                        None => {
-                            return Err(RoqoqoBackendError::GenericError {
-                                msg: "IQM backend returned empty measurement results".to_string(),
-                            })
-                        }
-                    },
-                    None => {
-                        return Err(RoqoqoBackendError::GenericError {
-                            msg: "IQM backend returned empty measurement results".to_string(),
-                        })
-                    }
-                };
+            let iqm_result: IqmRunResult = self.get_results(id.clone())?;
+            match iqm_result.status {
+                Status::Ready => {
+                    match iqm_result.measurements {
+                        Some(x) => match x.first() {
+                            Some(y) => return Ok(y.clone()),
+                            None => return Err(IqmBackendError::EmptyResult { id }),
+                        },
+                        None => return Err(IqmBackendError::EmptyResult { id }),
+                    };
+                }
+                Status::Failed => {
+                    let msg = iqm_result.message.expect(
+                        "Job has failed but response message is
+                                 empty. Something went wrong on the server side.",
+                    );
+                    return Err(IqmBackendError::JobFailed { id, msg });
+                }
+                Status::Aborted => return Err(IqmBackendError::JobAborted { id }),
+                _ => {
+                    let duration = Duration::from_secs_f64(SECONDS_BETWEEN_CALLS);
+                    thread::sleep(duration);
+                }
             }
-            let duration = Duration::from_secs_f64(SECONDS_BETWEEN_CALLS);
-            thread::sleep(duration);
         }
-        Err(RoqoqoBackendError::Timeout {
-            msg: format!("Job did not finish in {} seconds", TIMEOUT_SECS),
-        })
+        Err(IqmBackendError::RoqoqoBackendError(
+            RoqoqoBackendError::Timeout {
+                msg: format!("Job did not finish in {} seconds", TIMEOUT_SECS),
+            },
+        ))
     }
 
     /// Abort a submitted job.
@@ -527,7 +465,7 @@ impl Backend {
     /// # Returns
     ///
     /// * `Err(RoqoqoBackendError)` - If the job abortion failed.
-    pub fn abort_job(&self, id: &str) -> Result<(), RoqoqoBackendError> {
+    pub fn abort_job(&self, id: String) -> Result<(), IqmBackendError> {
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
             .build()
@@ -535,7 +473,7 @@ impl Backend {
                 msg: format!("could not create https client {:?}", x),
             })?;
 
-        let abort_url = [&self.device.remote_host(), "jobs", id, "abort"].join("/");
+        let abort_url = [&self.device.remote_host(), "jobs", &id, "abort"].join("/");
 
         let resp = client
             .post(abort_url)
@@ -548,13 +486,11 @@ impl Backend {
         match resp.status() {
             reqwest::StatusCode::OK => Ok(()),
             _ => {
-                let abort_failed_msg: &str =
-                    &serde_json::from_str::<AbortResponse>(&resp.text().unwrap())
-                        .unwrap()
-                        .detail;
-                Err(RoqoqoBackendError::GenericError {
-                    msg: format!("Job abortion failed: {}", abort_failed_msg),
-                })
+                let msg = serde_json::from_str::<AbortResponse>(&resp.text().unwrap())
+                    .unwrap()
+                    .detail
+                    .to_string();
+                Err(IqmBackendError::JobAbortionFailed { id, msg })
             }
         }
     }
@@ -600,25 +536,27 @@ impl Backend {
             })
         }
     }
-}
 
-impl EvaluatingBackend for Backend {
-    fn run_circuit(&self, circuit: &Circuit) -> RegisterResult {
-        self.validate_circuit(circuit)?;
-        self.run_circuit_iterator(circuit.iter())
-    }
-    fn run_circuit_iterator<'a>(
+    /// Submit a circuit to be executed on the IQM platform.
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit` - The circuit to be submitted.
+    /// * `bit_registers` - Mutable reference to the output registers.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String, RegisterMapping)` - Job ID and mapping of measured qubits to register indices.
+    /// * `Err(RoqoqoBackendError::NetworkError)` - Something went wrong when submitting the job.
+    pub fn submit_circuit<'a>(
         &self,
         circuit: impl Iterator<Item = &'a Operation>,
-    ) -> RegisterResult {
-        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
-        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
-
+        bit_registers: &mut HashMap<String, BitOutputRegister>,
+    ) -> Result<(String, RegisterMapping), RoqoqoBackendError> {
         let (iqm_circuit, register_mapping, number_measurements) = call_circuit(
             circuit,
             self.device.number_qubits(),
-            &mut bit_registers,
+            bit_registers,
             self.number_measurements_internal,
         )?;
 
@@ -636,10 +574,10 @@ impl EvaluatingBackend for Backend {
             .https_only(true)
             .build()
             .map_err(|x| RoqoqoBackendError::NetworkError {
-                msg: format!("Could not create https client {:?}", x),
+                msg: format!("Could not create https client: {:?}", x),
             })?;
 
-        let resp = client
+        let response = client
             .post(self.device.remote_host())
             .headers(_construct_headers(&self.access_token))
             .json(&data)
@@ -648,31 +586,170 @@ impl EvaluatingBackend for Backend {
                 msg: format!("Error during POST request: {:?}", e),
             })?;
 
-        let status = resp.status();
-        match status {
-            reqwest::StatusCode::OK => (),
-            reqwest::StatusCode::CREATED => (),
-            reqwest::StatusCode::ACCEPTED => (),
-            _ => {
-                return Err(RoqoqoBackendError::GenericError {
-                    msg: format!(
-                        "Received an error response with HTTP status code: {}",
-                        status
-                    ),
-                });
+        _check_response_status(&response)?;
+
+        let job_id = serde_json::from_str::<ResponseBody>(&response.text().unwrap())
+            .expect("Something went wrong when deserializing the response to get the job ID.")
+            .id
+            .to_string();
+
+        Ok((job_id, register_mapping))
+    }
+
+    /// Run a list of circuits on the backend and wait for results.
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit_list` - The list of circuits to be run.
+    ///
+    /// # Returns
+    ///
+    /// `Ok(Registers)` - The bit, float and complex registers containing the results.
+    /// `Err(RoqoqoBackendError)` - Transparent propagation of errors.
+    pub fn run_circuit_list(
+        &self,
+        circuit_list: Vec<Circuit>,
+    ) -> Result<Registers, RoqoqoBackendError> {
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        let mut float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+        let mut complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+
+        for circuit in circuit_list {
+            let (tmp_bit_reg, tmp_float_reg, tmp_complex_reg) = self.run_circuit(&circuit)?;
+
+            // Add results for current circuit to the total registers
+            for (key, mut val) in tmp_bit_reg.into_iter() {
+                if let Some(x) = bit_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = bit_registers.insert(key, val);
+                }
+            }
+            for (key, mut val) in tmp_float_reg.into_iter() {
+                if let Some(x) = float_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = float_registers.insert(key, val);
+                }
+            }
+            for (key, mut val) in tmp_complex_reg.into_iter() {
+                if let Some(x) = complex_registers.get_mut(&key) {
+                    x.append(&mut val);
+                } else {
+                    let _ = complex_registers.insert(key, val);
+                }
             }
         }
+        Ok((bit_registers, float_registers, complex_registers))
+    }
+}
 
-        let job_id: &str = &serde_json::from_str::<ResponseBody>(&resp.text().unwrap())
-            .unwrap()
-            .id;
+impl EvaluatingBackend for Backend {
+    fn run_circuit(&self, circuit: &Circuit) -> RegisterResult {
+        self.validate_circuit(circuit)
+            .map_err(|err| RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
+            })?;
+        self.run_circuit_iterator(circuit.iter())
+    }
+    fn run_circuit_iterator<'a>(
+        &self,
+        circuit: impl Iterator<Item = &'a Operation>,
+    ) -> RegisterResult {
+        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-        let result_map: IqmMeasurementResult = self.wait_for_results(job_id)?;
+        let (job_id, register_mapping) = self.submit_circuit(circuit, &mut bit_registers)?;
 
-        _results_to_registers(result_map, register_mapping, &mut bit_registers)?;
+        let result_map: CircuitResult =
+            self.wait_for_results(job_id)
+                .map_err(|err| RoqoqoBackendError::GenericError {
+                    msg: err.to_string(),
+                })?;
+
+        _results_to_registers(result_map, register_mapping, &mut bit_registers).map_err(|err| {
+            RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
+            }
+        })?;
 
         Ok((bit_registers, float_registers, complex_registers))
     }
+}
+
+/// Checks the status of the endpoint response after submission.
+fn _check_response_status(response: &Response) -> Result<(), RoqoqoBackendError> {
+    let status = response.status();
+    match status {
+        reqwest::StatusCode::OK => (),
+        reqwest::StatusCode::CREATED => (),
+        reqwest::StatusCode::ACCEPTED => (),
+        _ => {
+            return Err(RoqoqoBackendError::NetworkError {
+                msg: format!(
+                    "Received an error response with HTTP status code: {}",
+                    status
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+// Helper function to convert the IQM result format into the classical register format used by
+// Roqoqo. This involves changing 1 to `true` and 0 to `false`, and replacing the corresponding entry in
+// the classical output registers which have been initialized with only `false` entries.
+#[inline]
+fn _results_to_registers(
+    r: CircuitResult,
+    measured_qubits_map: HashMap<String, Vec<usize>>,
+    output_registers: &mut HashMap<String, BitOutputRegister>,
+) -> Result<(), IqmBackendError> {
+    for (reg, reg_result) in r.iter() {
+        let measured_qubits = measured_qubits_map
+            .get(reg)
+            .ok_or(RoqoqoBackendError::GenericError {
+                msg: "Backend results contain registers that are not present in the \
+                      measured_qubits_map."
+                    .to_string(),
+            })
+            .map_err(IqmBackendError::RoqoqoBackendError)?;
+
+        let output_values = output_registers
+            .get_mut(reg)
+            .ok_or(RoqoqoBackendError::GenericError {
+                msg: "Backend results contain registers that are not present in the BitRegisters \
+                      initialized by the Definition operations."
+                    .to_string(),
+            })
+            .map_err(IqmBackendError::RoqoqoBackendError)?;
+
+        for (i, shot_result) in reg_result.iter().enumerate() {
+            for (j, qubit) in measured_qubits.iter().enumerate() {
+                output_values[i][*qubit] ^= shot_result[j] != 0
+            }
+        }
+    }
+    Ok(())
+}
+
+#[inline]
+fn _construct_headers(token: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    // The purpose of this header is to allow the client to check if the server is ready to receive
+    // the request before actually sending the request data.
+    headers.insert("Expect", HeaderValue::from_str("100-Continue").unwrap());
+    headers.insert(
+        "User-Agent",
+        HeaderValue::from_str("qoqo-iqm client").unwrap(),
+    );
+    let token_header = &["Bearer", token].join(" ");
+    headers.insert(
+        "Authorization",
+        HeaderValue::from_str(token_header).unwrap(),
+    );
+    headers
 }
 
 #[cfg(test)]
