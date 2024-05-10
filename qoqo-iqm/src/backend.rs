@@ -232,13 +232,15 @@ impl BackendWrapper {
     ///     TypeError: Circuit argument cannot be converted to qoqo Circuit
     ///     RuntimeError: Running Circuit failed
     pub fn run_measurement_registers(&self, measurement: &PyAny) -> PyResult<Registers> {
-        let circuit_list = get_circuit_list_from_measurement(measurement)?;
-        self.internal.run_circuit_list(circuit_list).map_err(|err| {
-            PyRuntimeError::new_err(format!(
-                "Something went wrong when running the list of circuits: {:?}",
-                err
-            ))
-        })
+        let circuit_batch = get_circuit_list_from_measurement(measurement)?;
+        self.internal
+            .run_circuit_batch(circuit_batch)
+            .map_err(|err| {
+                PyRuntimeError::new_err(format!(
+                    "Something went wrong when running the list of circuits: {:?}",
+                    err
+                ))
+            })
     }
 
     /// Runs a measurement with the IQM backend and waits for results.

@@ -44,6 +44,7 @@ pub struct IqmCircuit {
     pub name: String,
     /// Vector of instructions accepted by the IQM REST API
     pub instructions: Vec<IqmInstruction>,
+    /// Optional metadata associated with the circuit.
     pub metadata: Option<HashMap<String, String>>,
 }
 
@@ -63,7 +64,7 @@ pub struct IqmInstruction {
 // HashMap that associates to each register name the indices in the register that are being affected
 // by measurements. These indices are saved in the order in which the measurement operations appear
 // in the circuit, since this is the order in which the backend returns the results.
-pub(crate) type RegisterMapping = HashMap<String, Vec<usize>>;
+pub(crate) type MeasuredQubitsMap = HashMap<String, Vec<usize>>;
 
 /// Converts all operations in a [roqoqo::Circuit] into instructions for IQM Hardware.
 ///
@@ -75,10 +76,11 @@ pub(crate) type RegisterMapping = HashMap<String, Vec<usize>>;
 /// * `output_registers` - A mutable reference to the classical registers that need to be initialized
 /// * `number_measurements_internal` - If set, the number of measurements that has been overwritten
 /// in the backend
+/// * `circuit_index` - Index of the circuit in the batch, needed to assign a unique name to the circuit.
 ///
 /// # Returns
 ///
-/// * `Ok(IqmCircuit, RegisterMapping, usize)` - Converted circuit, mapping of measured qubits to
+/// * `Ok(IqmCircuit, MeasuredQubitsMap, usize)` - Converted circuit, mapping of measured qubits to
 ///    register indices, and number of measurements
 /// * `Err(RoqoqoBackendError::OperationNotInBackend)` - Error when [roqoqo::operations::Operation]
 ///    can not be converted
@@ -87,11 +89,12 @@ pub fn call_circuit<'a>(
     device_number_qubits: usize,
     output_registers: &mut HashMap<String, BitOutputRegister>,
     number_measurements_internal: Option<usize>,
-) -> Result<(IqmCircuit, RegisterMapping, usize), IqmBackendError> {
+    circuit_index: usize,
+) -> Result<(IqmCircuit, MeasuredQubitsMap, usize), IqmBackendError> {
     let mut circuit_vec: Vec<IqmInstruction> = Vec::new();
     let mut number_measurements: usize = 1;
     let mut measured_qubits: Vec<usize> = vec![];
-    let mut register_mapping: RegisterMapping = HashMap::new();
+    let mut measured_qubits_map: MeasuredQubitsMap = HashMap::new();
 
     for op in circuit {
         match op {
@@ -99,15 +102,15 @@ pub fn call_circuit<'a>(
                 let name = (*o).name().to_string();
                 // initialize output registers with default `false` values
                 if *o.is_output() {
-                    output_registers.insert(name, vec![vec![false; *o.length()]]);
-                    register_mapping.insert(name, vec![]);
+                    output_registers.insert(name.clone(), vec![vec![false; *o.length()]]);
+                    measured_qubits_map.insert(name, vec![]);
                 }
             }
             Operation::MeasureQubit(o) => {
                 let readout = o.readout().clone();
                 measured_qubits.push(*o.qubit());
 
-                match register_mapping.get_mut(&readout) {
+                match measured_qubits_map.get_mut(&readout) {
                     Some(x) => x.push(*o.readout_index()),
                     None => {
                         return Err(IqmBackendError::InvalidCircuit {
@@ -119,10 +122,10 @@ pub fn call_circuit<'a>(
                 let mut found: bool = false;
                 // Check if we already have a measurement to the same register
                 // if yes, add the qubit being measured to that measurement
-                for instr in circuit_vec.iter_mut().filter(|&x| x.name == "measure") {
+                for instr in circuit_vec.iter_mut().filter(|x| x.name == "measure") {
                     let meas_readout = instr.args.get("key").expect(
                         "An IqmInstruction measurement must contain a `key` entry in \
-                                     the `args` field.",
+                         the `args` field.",
                     );
                     if let CalculatorFloat::Str(s) = meas_readout {
                         if s == &readout {
@@ -194,8 +197,8 @@ pub fn call_circuit<'a>(
                         }
 
                         // update register mapping with the only register specified by PragmaSetNumberOfMeasurements
-                        register_mapping = HashMap::new();
-                        register_mapping.insert(readout.clone(), measured_qubits.clone());
+                        measured_qubits_map = HashMap::new();
+                        measured_qubits_map.insert(readout.clone(), measured_qubits.clone());
 
                         // add single measurement instruction for all the qubits that were measured with MeasureQubit
                         let meas = IqmInstruction {
@@ -245,12 +248,12 @@ pub fn call_circuit<'a>(
                                     .first()
                                     .expect("Something went wrong when initializing the output registers.")
                                     .len();
-                                register_mapping
+                                measured_qubits_map
                                     .insert(o.readout().to_string(), (0..readout_length).collect());
                             }
                         }
                     }
-                    Some(map) => match register_mapping.get_mut(o.readout()) {
+                    Some(map) => match measured_qubits_map.get_mut(o.readout()) {
                         Some(x) => {
                             for qubit in map.keys().sorted() {
                                 x.push(map[qubit])
@@ -312,16 +315,12 @@ pub fn call_circuit<'a>(
     }
 
     let iqm_circuit = IqmCircuit {
-        // NOTE
-        // circuits have to be given different names when support for circuit batches is added
-        // Since for the moment we only support submission of a single circuit, the name is
-        // irrelevant and is hardcoded
-        name: String::from("my_qc"),
+        name: format!("qc_{}", circuit_index),
         instructions: circuit_vec,
         metadata: None,
     };
 
-    Ok((iqm_circuit, register_mapping, number_measurements))
+    Ok((iqm_circuit, measured_qubits_map, number_measurements))
 }
 
 /// Converts a [roqoqo::operations::Operation] into a native instruction for IQM Hardware

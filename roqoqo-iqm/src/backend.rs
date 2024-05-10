@@ -11,7 +11,7 @@
 // limitations under the License.
 
 use crate::devices::IqmDevice;
-use crate::interface::{call_circuit, IqmCircuit, RegisterMapping};
+use crate::interface::{call_circuit, IqmCircuit, MeasuredQubitsMap};
 use crate::IqmBackendError;
 
 use reqwest::blocking::Response;
@@ -176,7 +176,6 @@ fn _get_number_qubits(qc: &Circuit) -> Option<usize> {
 }
 
 /// IQM backend
-///
 /// Provides functions to run circuits and measurements on IQM devices.
 #[derive(Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct Backend {
@@ -533,33 +532,70 @@ impl Backend {
         }
     }
 
+    /// Validate the batch of circuits to submit by checking that they all write to different output registers.
+    ///
+    /// # Arguments
+    ///
+    /// * `circuit_batch` - The batch of circuits to validate.
+    ///
+    /// # Returns
+    ///
+    /// * `Err(IqmBackendError)` - The batch is invalid.
+    fn validate_circuit_batch(circuit_batch: &[Circuit]) -> Result<(), IqmBackendError> {
+        let mut output_registers = HashSet::new();
+        for circuit in circuit_batch.iter() {
+            for op in circuit.iter() {
+                if let Operation::DefinitionBit(o) = op {
+                    if *o.is_output() {
+                        let name = o.name().clone();
+                        output_registers.insert(name);
+                    }
+                }
+            }
+        }
+        if output_registers.len() != circuit_batch.len() {
+            return Err(IqmBackendError::InvalidCircuit {
+                msg: "Invalid circuit batch. When submitting a batch of circuits, they need to have
+                      different output registers."
+                    .to_string(),
+            });
+        }
+        Ok(())
+    }
+
     /// Submit a circuit batch to be executed on the IQM platform.
     ///
     /// # Arguments
     ///
-    /// * `circuit_list` - The circuits to be submitted.
-    /// * `bit_registers` - Mutable reference to the output registers.
+    /// * `circuit_batch` - The circuits to be submitted.
+    /// * `bit548G_registers` - Mutable reference to the output registers.
     ///
     /// # Returns
     ///
-    /// * `Ok(String, RegisterMapping)` - Job ID and mapping of measured qubits to register indices.
+    /// * `Ok(String, MeasuredQubitsMap)` - Job ID and mapping of measured qubits to register indices.
     /// * `Err(RoqoqoBackendError::NetworkError)` - Something went wrong when submitting the job.
     pub fn submit_circuit_batch(
         &self,
-        circuit_list: Vec<Circuit>,
+        circuit_batch: Vec<Circuit>,
         bit_registers: &mut HashMap<String, BitOutputRegister>,
-    ) -> Result<(String, RegisterMapping), IqmBackendError> {
+    ) -> Result<(String, MeasuredQubitsMap), IqmBackendError> {
+        Self::validate_circuit_batch(&circuit_batch)?;
+
         let mut circuits = vec![];
         let mut number_measurements_set = HashSet::new();
+        let mut measured_qubits_map: MeasuredQubitsMap = HashMap::new();
 
-        for circuit in circuit_list.into_iter() {
-            let (iqm_circuit, register_mapping, number_measurements) = call_circuit(
+        for (circuit_index, circuit) in circuit_batch.into_iter().enumerate() {
+            let (iqm_circuit, tmp_measured_qubits_map, number_measurements) = call_circuit(
                 circuit.iter(),
                 self.device.number_qubits(),
                 bit_registers,
                 self.number_measurements_internal,
+                circuit_index,
             )?;
-
+            for (reg_name, measured_qubits) in tmp_measured_qubits_map {
+                measured_qubits_map.insert(reg_name, measured_qubits);
+            }
             circuits.push(iqm_circuit);
             number_measurements_set.insert(number_measurements);
         }
@@ -567,8 +603,8 @@ impl Backend {
         if number_measurements_set.len() != 1 {
             return Err(IqmBackendError::InvalidCircuit {
                 msg:
-                    "Circuits in the circuit batch have different numbers of measurements, which is
-                      not allowed by the backend."
+                    "Circuits in the circuit batch have different numbers of measurements, which is \
+                     not allowed by the backend."
                         .to_string(),
             });
         }
@@ -611,7 +647,7 @@ impl Backend {
             .id
             .to_string();
 
-        Ok((job_id, register_mapping))
+        Ok((job_id, measured_qubits_map))
     }
 
     /// Submit a circuit to be executed on the IQM platform.
@@ -623,13 +659,13 @@ impl Backend {
     ///
     /// # Returns
     ///
-    /// * `Ok(String, RegisterMapping)` - Job ID and mapping of measured qubits to register indices.
+    /// * `Ok(String, MeasuredQubitsMap)` - Job ID and mapping of measured qubits to register indices.
     /// * `Err(RoqoqoBackendError::NetworkError)` - Something went wrong when submitting the job.
     pub fn submit_circuit<'a>(
         &self,
         circuit: impl Iterator<Item = &'a Operation>,
         bit_registers: &mut HashMap<String, BitOutputRegister>,
-    ) -> Result<(String, RegisterMapping), RoqoqoBackendError> {
+    ) -> Result<(String, MeasuredQubitsMap), RoqoqoBackendError> {
         let circuit: Circuit = circuit.into_iter().cloned().collect();
         self.submit_circuit_batch(vec![circuit], bit_registers)
             .map_err(|err| RoqoqoBackendError::GenericError {
@@ -641,46 +677,42 @@ impl Backend {
     ///
     /// # Arguments
     ///
-    /// * `circuit_list` - The list of circuits to be run.
+    /// * `circuit_batch` - The list of circuits to be run.
     ///
     /// # Returns
     ///
     /// `Ok(Registers)` - The bit, float and complex registers containing the results.
     /// `Err(RoqoqoBackendError)` - Transparent propagation of errors.
-    pub fn run_circuit_list(
+    pub fn run_circuit_batch(
         &self,
-        circuit_list: Vec<Circuit>,
+        circuit_batch: Vec<Circuit>,
     ) -> Result<Registers, RoqoqoBackendError> {
         let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        let mut float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
-        let mut complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-        for circuit in circuit_list {
-            let (tmp_bit_reg, tmp_float_reg, tmp_complex_reg) = self.run_circuit(&circuit)?;
+        let (job_id, measured_qubits_map) = self
+            .submit_circuit_batch(circuit_batch, &mut bit_registers)
+            .map_err(|err| RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
+            })?;
 
-            // Add results for current circuit to the total registers
-            for (key, mut val) in tmp_bit_reg.into_iter() {
-                if let Some(x) = bit_registers.get_mut(&key) {
-                    x.append(&mut val);
-                } else {
-                    let _ = bit_registers.insert(key, val);
-                }
+        let result: CircuitResult = self
+            .wait_for_results(job_id)
+            .map_err(|err| RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
+            })?
+            .into_iter()
+            .next()
+            .ok_or(RoqoqoBackendError::GenericError {
+                msg: "Backend returned empty list of CircuitResults.".to_string(),
+            })?;
+
+        _results_to_registers(result, measured_qubits_map, &mut bit_registers).map_err(|err| {
+            RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
             }
-            for (key, mut val) in tmp_float_reg.into_iter() {
-                if let Some(x) = float_registers.get_mut(&key) {
-                    x.append(&mut val);
-                } else {
-                    let _ = float_registers.insert(key, val);
-                }
-            }
-            for (key, mut val) in tmp_complex_reg.into_iter() {
-                if let Some(x) = complex_registers.get_mut(&key) {
-                    x.append(&mut val);
-                } else {
-                    let _ = complex_registers.insert(key, val);
-                }
-            }
-        }
+        })?;
         Ok((bit_registers, float_registers, complex_registers))
     }
 }
@@ -697,30 +729,8 @@ impl EvaluatingBackend for Backend {
         &self,
         circuit: impl Iterator<Item = &'a Operation>,
     ) -> RegisterResult {
-        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
-        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
-
-        let (job_id, register_mapping) = self.submit_circuit(circuit, &mut bit_registers)?;
-
-        let result: CircuitResult = self
-            .wait_for_results(job_id)
-            .map_err(|err| RoqoqoBackendError::GenericError {
-                msg: err.to_string(),
-            })?
-            .into_iter()
-            .next()
-            .ok_or(RoqoqoBackendError::GenericError {
-                msg: "Backend returned empty list of CircuitResults.".to_string(),
-            })?;
-
-        _results_to_registers(result, register_mapping, &mut bit_registers).map_err(|err| {
-            RoqoqoBackendError::GenericError {
-                msg: err.to_string(),
-            }
-        })?;
-
-        Ok((bit_registers, float_registers, complex_registers))
+        let circuit: Circuit = circuit.into_iter().cloned().collect();
+        self.run_circuit_batch(vec![circuit])
     }
 }
 
@@ -787,9 +797,10 @@ fn _results_to_registers(
                     },
                 ))?;
 
-        for (i, shot_result) in reg_result.iter().enumerate() {
+        for (shot_index, shot_result) in reg_result.iter().enumerate() {
             for (j, qubit) in measured_qubits.iter().enumerate() {
-                output_values[i][*qubit] ^= shot_result[j] != 0
+                // turn 0 into false and 1 into true
+                output_values[shot_index][*qubit] ^= shot_result[j] != 0
             }
         }
     }
