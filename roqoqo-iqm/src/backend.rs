@@ -91,9 +91,10 @@ enum HeraldingMode {
 }
 
 /// Measurement results from a single circuit. For each measurement operation in the circuit, maps
-/// the measurement key to the corresponding results. The outer Vec elements correspond to shots,
-/// and the inner Vec elements to the qubits measured in the measurement operation and the
-/// respective outcomes.
+/// the measurement key to the corresponding results. The measurement key is specified in the
+/// `measure` IqmInstruction, and it is currently set equal to the name of the output register. The
+/// outer Vec elements correspond to shots, and the inner Vec elements to the qubits measured in the
+/// measurement operation and the respective outcomes.
 type CircuitResult = HashMap<String, Vec<Vec<u8>>>;
 type BatchResult = Vec<CircuitResult>;
 
@@ -153,26 +154,6 @@ impl fmt::Display for TokenError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.msg)
     }
-}
-
-fn _get_token_from_env_var() -> Result<String, TokenError> {
-    let token: String = var("IQM_TOKEN").map_err(|_| TokenError {
-        msg: "Could not retrieve token from environment variable IQM_TOKEN.".to_string(),
-    })?;
-    Ok(token)
-}
-
-// Helper function to get number of qubits in a qoqo Circuit
-fn _get_number_qubits(qc: &Circuit) -> Option<usize> {
-    let mut number_qubits_vec: Vec<usize> = vec![];
-    for op in qc.iter() {
-        if let InvolvedQubits::Set(s) = op.involved_qubits() {
-            if let Some(x) = s.iter().max() {
-                number_qubits_vec.push(*x)
-            }
-        }
-    }
-    number_qubits_vec.iter().max().map(|x| x + 1)
 }
 
 /// IQM backend
@@ -405,7 +386,6 @@ impl Backend {
         if iqm_result.warnings.is_some() {
             eprintln!("Warnings: {:?}", iqm_result.clone().warnings.unwrap());
         }
-
         Ok(iqm_result)
     }
 
@@ -553,9 +533,9 @@ impl Backend {
                 }
             }
         }
-        if output_registers.len() != circuit_batch.len() {
+        if output_registers.len() < circuit_batch.len() {
             return Err(IqmBackendError::InvalidCircuit {
-                msg: "Invalid circuit batch. When submitting a batch of circuits, they need to have
+                msg: "Invalid circuit batch. When submitting a batch of circuits, they need to write to
                       different output registers."
                     .to_string(),
             });
@@ -610,13 +590,13 @@ impl Backend {
         }
 
         let number_measurements = number_measurements_set
-            .iter()
+            .into_iter()
             .next()
             .expect("Number measurements set is unexpectedly empty.");
 
         let data = IqmRunRequest {
             circuits,
-            shots: *number_measurements as u16,
+            shots: number_measurements as u16,
             custom_settings: None,
             calibration_set_id: None,
             qubit_mapping: None,
@@ -665,12 +645,9 @@ impl Backend {
         &self,
         circuit: impl Iterator<Item = &'a Operation>,
         bit_registers: &mut HashMap<String, BitOutputRegister>,
-    ) -> Result<(String, MeasuredQubitsMap), RoqoqoBackendError> {
+    ) -> Result<(String, MeasuredQubitsMap), IqmBackendError> {
         let circuit: Circuit = circuit.into_iter().cloned().collect();
         self.submit_circuit_batch(vec![circuit], bit_registers)
-            .map_err(|err| RoqoqoBackendError::GenericError {
-                msg: err.to_string(),
-            })
     }
 
     /// Run a list of circuits on the backend and wait for results.
@@ -686,33 +663,21 @@ impl Backend {
     pub fn run_circuit_batch(
         &self,
         circuit_batch: Vec<Circuit>,
-    ) -> Result<Registers, RoqoqoBackendError> {
+    ) -> Result<Registers, IqmBackendError> {
         let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
         let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
         let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
 
-        let (job_id, measured_qubits_map) = self
-            .submit_circuit_batch(circuit_batch, &mut bit_registers)
-            .map_err(|err| RoqoqoBackendError::GenericError {
-                msg: err.to_string(),
-            })?;
+        let (id, measured_qubits_map) =
+            self.submit_circuit_batch(circuit_batch, &mut bit_registers)?;
 
-        let result: CircuitResult = self
-            .wait_for_results(job_id)
-            .map_err(|err| RoqoqoBackendError::GenericError {
-                msg: err.to_string(),
-            })?
+        let result = self
+            .wait_for_results(id.clone())?
             .into_iter()
             .next()
-            .ok_or(RoqoqoBackendError::GenericError {
-                msg: "Backend returned empty list of CircuitResults.".to_string(),
-            })?;
+            .ok_or(IqmBackendError::EmptyResult { id })?;
 
-        _results_to_registers(result, measured_qubits_map, &mut bit_registers).map_err(|err| {
-            RoqoqoBackendError::GenericError {
-                msg: err.to_string(),
-            }
-        })?;
+        _results_to_registers(result, measured_qubits_map, &mut bit_registers)?;
         Ok((bit_registers, float_registers, complex_registers))
     }
 }
@@ -731,6 +696,9 @@ impl EvaluatingBackend for Backend {
     ) -> RegisterResult {
         let circuit: Circuit = circuit.into_iter().cloned().collect();
         self.run_circuit_batch(vec![circuit])
+            .map_err(|err| RoqoqoBackendError::GenericError {
+                msg: err.to_string(),
+            })
     }
 }
 
@@ -823,6 +791,26 @@ fn _construct_headers(token: &str) -> HeaderMap {
         HeaderValue::from_str(token_header).unwrap(),
     );
     headers
+}
+
+fn _get_token_from_env_var() -> Result<String, TokenError> {
+    let token: String = var("IQM_TOKEN").map_err(|_| TokenError {
+        msg: "Could not retrieve token from environment variable IQM_TOKEN.".to_string(),
+    })?;
+    Ok(token)
+}
+
+// Helper function to get number of qubits in a qoqo Circuit
+fn _get_number_qubits(qc: &Circuit) -> Option<usize> {
+    let mut number_qubits_vec: Vec<usize> = vec![];
+    for op in qc.iter() {
+        if let InvolvedQubits::Set(s) = op.involved_qubits() {
+            if let Some(x) = s.iter().max() {
+                number_qubits_vec.push(*x)
+            }
+        }
+    }
+    number_qubits_vec.iter().max().map(|x| x + 1)
 }
 
 #[cfg(test)]
