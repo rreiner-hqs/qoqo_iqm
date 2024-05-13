@@ -867,9 +867,11 @@ mod tests {
             "reg2".to_string(),
             vec![vec![false, false, false], vec![false, false, false]],
         );
+
         let mut iqm_results = HashMap::new();
         iqm_results.insert("reg1".to_string(), vec![vec![0, 1, 0], vec![1, 1, 0]]);
         iqm_results.insert("reg2".to_string(), vec![vec![1, 1], vec![1, 0]]);
+
         let mut measured_qubits_map = HashMap::new();
         measured_qubits_map.insert("reg1".to_string(), vec![0, 2, 4]);
         measured_qubits_map.insert("reg2".to_string(), vec![1, 2]);
