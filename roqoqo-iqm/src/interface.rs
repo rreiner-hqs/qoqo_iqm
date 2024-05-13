@@ -36,7 +36,7 @@ const ALLOWED_OPERATIONS: &[&str; 8] = &[
 
 /// Representation for quantum circuits accepted by the IQM REST API.
 ///
-/// roqoqo does not have a `name` identifier for quantum circuits, but it is needed when
+/// Roqoqo does not have a `name` identifier for quantum circuits, but it is needed when
 /// submitting to the IQM backend.
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct IqmCircuit {
@@ -44,8 +44,9 @@ pub struct IqmCircuit {
     pub name: String,
     /// Vector of instructions accepted by the IQM REST API
     pub instructions: Vec<IqmInstruction>,
-    /// Optional metadata associated with the circuit.
-    pub metadata: Option<HashMap<String, String>>,
+    /// Optional arbitrary metadata associated with the circuit. Here used to store the lists of
+    /// measured qubits for each register, used for processing the results.
+    pub metadata: Option<MeasuredQubitsMap>,
 }
 
 /// Representation for instructions accepted by the IQM REST API
@@ -80,8 +81,7 @@ pub(crate) type MeasuredQubitsMap = HashMap<String, Vec<usize>>;
 ///
 /// # Returns
 ///
-/// * `Ok(IqmCircuit, MeasuredQubitsMap, usize)` - Converted circuit, mapping of measured qubits to
-///    register indices, and number of measurements
+/// * `Ok(IqmCircuit, usize)` - Converted circuit and number of measurements
 /// * `Err(RoqoqoBackendError::OperationNotInBackend)` - Error when [roqoqo::operations::Operation]
 ///    can not be converted
 pub fn call_circuit<'a>(
@@ -90,7 +90,7 @@ pub fn call_circuit<'a>(
     output_registers: &mut HashMap<String, BitOutputRegister>,
     number_measurements_internal: Option<usize>,
     circuit_index: usize,
-) -> Result<(IqmCircuit, MeasuredQubitsMap, usize), IqmBackendError> {
+) -> Result<(IqmCircuit, usize), IqmBackendError> {
     let mut circuit_vec: Vec<IqmInstruction> = Vec::new();
     let mut number_measurements: usize = 1;
     let mut measured_qubits: Vec<usize> = vec![];
@@ -317,10 +317,10 @@ pub fn call_circuit<'a>(
     let iqm_circuit = IqmCircuit {
         name: format!("qc_{}", circuit_index),
         instructions: circuit_vec,
-        metadata: None,
+        metadata: Some(measured_qubits_map),
     };
 
-    Ok((iqm_circuit, measured_qubits_map, number_measurements))
+    Ok((iqm_circuit, number_measurements))
 }
 
 /// Converts a [roqoqo::operations::Operation] into a native instruction for IQM Hardware

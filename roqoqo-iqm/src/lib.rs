@@ -75,6 +75,12 @@ pub enum IqmBackendError {
         /// Message
         msg: String,
     },
+    #[error("{msg}")]
+    /// Problem with circuit metadata in the results
+    MetadataError {
+        /// Message
+        msg: String,
+    },
     /// Transparent propagation of RoqoqoBackendError
     #[error(transparent)]
     RoqoqoBackendError(#[from] RoqoqoBackendError),
