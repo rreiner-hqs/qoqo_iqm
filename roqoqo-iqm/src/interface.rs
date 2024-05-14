@@ -21,6 +21,11 @@ use roqoqo::RoqoqoBackendError;
 
 use crate::IqmBackendError;
 
+// HashMap that associates to each register name the indices in the register that are being affected
+// by measurements, and the length of the register. This information is needed to post process the
+// results returned by the server.
+pub(crate) type MeasuredQubitsMap = HashMap<String, (Vec<usize>, usize)>;
+
 // Pragma operations that are ignored by backend and do not throw an error
 const ALLOWED_OPERATIONS: &[&str; 8] = &[
     "PragmaBoostNoise",
@@ -60,11 +65,6 @@ pub struct IqmInstruction {
     /// results into roqoqo registers.
     pub args: HashMap<String, CalculatorFloat>,
 }
-
-// HashMap that associates to each register name the indices in the register that are being affected
-// by measurements. These indices are saved in the order in which the measurement operations appear
-// in the circuit, since this is the order in which the backend returns the results.
-pub(crate) type MeasuredQubitsMap = HashMap<String, (Vec<usize>, usize)>;
 
 /// Converts all operations in a [roqoqo::Circuit] into instructions for IQM Hardware.
 ///
