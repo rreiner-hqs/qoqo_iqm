@@ -263,37 +263,38 @@ impl BackendWrapper {
     }
 
     /// TODO
-    pub fn query_measurement_results(
+    pub fn get_measurement_results(
         &self,
         id: String,
         measurement: &PyAny,
     ) -> PyResult<Option<HashMap<String, f64>>> {
-        let 
     }
 
-    /// Submit a measurement to the backend without fetching the results immediately.
+    /// Submit a measurement to the backend for asynchronous execution.
     ///
     /// Args:
     ///     measurement (Measurement): The measurement that is submitted to the backend.
     ///
     /// Returns:
-    ///     Tuple[str, Dict[str, List[int]]]: Job ID to retrieve the results, and map of the
-    ///     measured qubits for each output register, needed to process the results of the backend.
+    ///     str: Job ID to retrieve the results
     ///
     /// Raises:
     ///     RuntimeError: Something went wrong when submitting the job to the backend.
-    pub fn submit_measurement(
-        &self,
-        measurement: &PyAny,
-    ) -> PyResult<(String, HashMap<String, Vec<usize>>)> {
+    pub fn submit_measurement(&self, measurement: &PyAny) -> PyResult<String> {
         let circuit_batch = get_circuit_list_from_measurement(measurement).map_err(|err| {
             PyRuntimeError::new_err(format!(
-                "Something went wrong when submitting the job to the backend: {:?}",
+                "Something went wrong when extracting the circuit list from the measurement: {:?}",
                 err
             ))
         })?;
         self.internal
-            .submit_circuit_batch(circuit_batch, bit_registers)?;
+            .submit_circuit_batch(circuit_batch, bit_registers)
+            .map_err(|err| {
+                PyRuntimeError::new_err(format!(
+                    "Something went wrong when submitting the job to the backend: {:?}",
+                    err
+                ))
+            })
     }
 }
 

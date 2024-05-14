@@ -111,7 +111,7 @@ struct Metadata {
     // timestamps: Option<HashMap<String, String>>,
 }
 
-/// Representation of the HTML response from the backend.
+/// Representation of the HTTP response from the backend.
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct IqmRunResult {
     /// Status of the job
@@ -360,13 +360,13 @@ impl Backend {
     /// # Returns
     ///
     /// * `Ok(IqmRunResult)` - Result of the job (status can be pending).
-    /// * `Err(RoqoqoBackendError)` - If something goes wrong with HTML requests or response is not formatted correctly.
+    /// * `Err(RoqoqoBackendError)` - If something goes wrong with the HTTP request, or response is not formatted correctly.
     pub fn get_results(&self, id: String) -> Result<IqmRunResult, RoqoqoBackendError> {
         let client = reqwest::blocking::Client::builder()
             .https_only(true)
             .build()
             .map_err(|x| RoqoqoBackendError::NetworkError {
-                msg: format!("could not create https client {:?}", x),
+                msg: format!("Could not create https client {:?}", x),
             })?;
 
         let job_url = self.device.remote_host() + "/" + &id;
@@ -527,21 +527,29 @@ impl Backend {
     /// # Returns
     ///
     /// * `Err(IqmBackendError)` - The batch is invalid.
-    fn validate_circuit_batch(circuit_batch: &[Circuit]) -> Result<(), IqmBackendError> {
+    fn validate_circuit_batch(&self, circuit_batch: &[Circuit]) -> Result<(), IqmBackendError> {
         let mut output_registers = HashSet::new();
         for circuit in circuit_batch.iter() {
+            self.validate_circuit(circuit)?;
+            let mut found_reg = false;
             for op in circuit.iter() {
                 if let Operation::DefinitionBit(o) = op {
                     if *o.is_output() {
                         let name = o.name().clone();
                         output_registers.insert(name);
+                        found_reg = true;
                     }
                 }
+            }
+            if !found_reg {
+                return Err(IqmBackendError::InvalidCircuit {
+                    msg: "Circuits need to write to at least one output register.".to_string(),
+                });
             }
         }
         if output_registers.len() < circuit_batch.len() {
             return Err(IqmBackendError::InvalidCircuit {
-                msg: "Invalid circuit batch. When submitting a batch of circuits, they need to write to
+                msg: "When submitting a batch of circuits, they need to write to
                       different output registers."
                     .to_string(),
             });
@@ -549,8 +557,7 @@ impl Backend {
         Ok(())
     }
 
-    /// Submit a circuit batch to be executed on the IQM platform. Internally, it writes to the
-    /// measured_qubits_map field of the Backend, which will be needed for processing the results.
+    /// Submit a circuit batch to be executed on the IQM platform.
     ///
     /// # Arguments
     ///
@@ -566,7 +573,7 @@ impl Backend {
         circuit_batch: Vec<Circuit>,
         bit_registers: &mut HashMap<String, BitOutputRegister>,
     ) -> Result<String, IqmBackendError> {
-        Self::validate_circuit_batch(&circuit_batch)?;
+        self.validate_circuit_batch(&circuit_batch)?;
 
         let mut circuits = vec![];
         let mut number_measurements_set = HashSet::new();
@@ -709,7 +716,9 @@ fn check_response_status(response: &Response) -> Result<(), RoqoqoBackendError> 
 
 #[inline]
 /// Parse the IqmRunResult received to create the MeasuredQubitsMap, which is needed to process the
-/// results by specifying which qubits have been measured for each register.
+/// results by specifying which qubits have been measured for each register. The qubits measured in
+/// each circuit are stored in the `metadata` field of each circuit submitted, and a copy of the
+/// `IqmRunRequest` is contained in the `metadata` field of the `IqmRunResult`.
 fn get_measured_qubits_map(results: &IqmRunResult) -> Result<MeasuredQubitsMap, IqmBackendError> {
     let mut measured_qubits_map = HashMap::new();
     let circuits = &results.metadata.request.circuits;
@@ -719,16 +728,20 @@ fn get_measured_qubits_map(results: &IqmRunResult) -> Result<MeasuredQubitsMap, 
                 .metadata
                 .clone()
                 .ok_or(IqmBackendError::MetadataError {
-                    msg: "Missing metadata field in the copy of IqmRequest returned with the /
+                    msg: "Missing metadata field in the copy of IqmRequest returned with the \
                           results."
                         .to_string(),
                 })?;
         for (tmp_reg, tmp_map) in tmp_measured_qubits_map.iter() {
             match measured_qubits_map.get(tmp_reg) {
-                Some(_) => return Err(IqmBackendError::MetadataError {
-                    msg: "Metadata from different circuits contain entries for the same register."
-                        .to_string(),
-                }),
+                Some(_) => {
+                    return Err(IqmBackendError::MetadataError {
+                        msg:
+                            "Measured qubits maps from different circuits contain entries for the \
+                          same register."
+                                .to_string(),
+                    })
+                }
                 None => {
                     measured_qubits_map.insert(tmp_reg.clone(), tmp_map.clone());
                 }
@@ -759,11 +772,11 @@ fn results_to_registers(
     id: String,
 ) -> Result<(), IqmBackendError> {
     let measured_qubits_map = get_measured_qubits_map(&results)?;
-    let measresults = results
+    let meas_results = results
         .measurements
         .ok_or(IqmBackendError::EmptyResult { id })?;
 
-    for result in measresults.iter() {
+    for result in meas_results.iter() {
         for (reg, reg_result) in result.iter() {
             let measured_qubits =
                 measured_qubits_map
