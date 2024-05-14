@@ -81,6 +81,12 @@ pub enum IqmBackendError {
         /// Message
         msg: String,
     },
+    #[error("{msg}")]
+    /// Received invalid results from the server
+    InvalidResults {
+        /// Message
+        msg: String,
+    },
     /// Transparent propagation of RoqoqoBackendError
     #[error(transparent)]
     RoqoqoBackendError(#[from] RoqoqoBackendError),

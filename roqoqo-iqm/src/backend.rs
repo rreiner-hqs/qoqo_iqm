@@ -562,7 +562,6 @@ impl Backend {
     /// # Arguments
     ///
     /// * `circuit_batch` - The circuits to be submitted.
-    /// * `bit_registers` - Mutable reference to the output registers.
     ///
     /// # Returns
     ///
@@ -571,7 +570,6 @@ impl Backend {
     pub fn submit_circuit_batch(
         &self,
         circuit_batch: Vec<Circuit>,
-        bit_registers: &mut HashMap<String, BitOutputRegister>,
     ) -> Result<String, IqmBackendError> {
         self.validate_circuit_batch(&circuit_batch)?;
 
@@ -582,7 +580,6 @@ impl Backend {
             let (iqm_circuit, number_measurements) = call_circuit(
                 circuit.iter(),
                 self.device.number_qubits(),
-                bit_registers,
                 self.number_measurements_internal,
                 circuit_index,
             )?;
@@ -662,16 +659,10 @@ impl Backend {
         &self,
         circuit_batch: Vec<Circuit>,
     ) -> Result<Registers, IqmBackendError> {
-        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
-        let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
-
-        let id = self.submit_circuit_batch(circuit_batch, &mut bit_registers)?;
-
+        let id = self.submit_circuit_batch(circuit_batch)?;
         let results = self.wait_for_results(id.clone())?;
 
-        results_to_registers(results, &mut bit_registers, id)?;
-        Ok((bit_registers, float_registers, complex_registers))
+        results_to_registers(results, id)
     }
 }
 
@@ -752,63 +743,67 @@ fn get_measured_qubits_map(results: &IqmRunResult) -> Result<MeasuredQubitsMap, 
 }
 
 /// Helper function to convert the IQM result format into the classical register format used by
-/// Roqoqo. This involves changing 1 to `true` and 0 to `false`, and replacing the corresponding
-/// entry in the classical output registers which have been initialized with only `false` entries.
+/// Roqoqo.
 ///
 /// # Arguments
 ///
 /// * `result` - The result to be processed.
-/// * `output_registers` - Mutable reference to the output registers on which to write the processed
-///    results.
 /// * `id` - The job ID.
 ///
 /// # Returns
 ///
-/// `Err(IqmBackendError)` - Something went wrong with the postprocessing.
+/// `Ok(Registers)` - The output registers constructed by processing the results.
+/// `Err(IqmBackendError)` - Something went wrong with the processing of the results.
 #[inline]
-fn results_to_registers(
-    results: IqmRunResult,
-    output_registers: &mut HashMap<String, BitOutputRegister>,
-    id: String,
-) -> Result<(), IqmBackendError> {
+fn results_to_registers(results: IqmRunResult, id: String) -> Result<Registers, IqmBackendError> {
+    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+    let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
+    let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();
+
     let measured_qubits_map = get_measured_qubits_map(&results)?;
     let meas_results = results
         .measurements
         .ok_or(IqmBackendError::EmptyResult { id })?;
 
+    // there is a separate result for every circuit submitted
     for result in meas_results.iter() {
         for (reg, reg_result) in result.iter() {
-            let measured_qubits =
+            let (measured_qubits, reg_length) =
                 measured_qubits_map
                     .get(reg)
-                    .ok_or(IqmBackendError::RoqoqoBackendError(
-                        RoqoqoBackendError::GenericError {
-                            msg: "Backend results contain registers that are not present in the \
+                    .ok_or(IqmBackendError::InvalidResults {
+                        msg: "Backend results contain registers that are not present in the \
                                 measured_qubits_map."
-                                .to_string(),
-                        },
-                    ))?;
+                            .to_string(),
+                    })?;
 
-            let output_values =
-                output_registers
-                    .get_mut(reg)
-                    .ok_or(IqmBackendError::RoqoqoBackendError(
-                        RoqoqoBackendError::GenericError {
-                            msg: "Backend results contain registers that are not present in the \
-                                BitRegisters initialized by the Definition operations."
-                                .to_string(),
-                        },
-                    ))?;
+            let number_measurements = reg_result.len();
+            match bit_registers.get(reg) {
+                None => {
+                    let initialized_reg = vec![false; *reg_length];
+                    let initialized_reg = vec![initialized_reg; number_measurements];
+                    bit_registers.insert(reg.clone(), initialized_reg);
+                }
+                Some(_) => {
+                    return Err(IqmBackendError::InvalidResults {
+                        msg: "Backend results contain multiple entries for the same register."
+                            .to_string(),
+                    })
+                }
+            }
 
+            let output_reg = bit_registers
+                .get_mut(reg)
+                .expect("Something went wrong when initializing the registers.");
             for (shot_index, shot_result) in reg_result.iter().enumerate() {
                 for (j, qubit) in measured_qubits.iter().enumerate() {
                     // turn 0 into false and 1 into true
-                    output_values[shot_index][*qubit] ^= shot_result[j] != 0
+                    output_reg[shot_index][*qubit] ^= shot_result[j] != 0
                 }
             }
         }
     }
-    Ok(())
+    Ok((bit_registers, float_registers, complex_registers))
 }
 
 #[inline]
@@ -890,27 +885,17 @@ mod tests {
     }
 
     #[test]
-    fn testresults_to_registers() {
-        let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-        bit_registers.insert(
-            "reg1".to_string(),
-            vec![
-                vec![false, false, false, false, false],
-                vec![false, false, false, false, false],
-            ],
-        );
-        bit_registers.insert(
-            "reg2".to_string(),
-            vec![vec![false, false, false], vec![false, false, false]],
-        );
-
+    fn test_results_to_registers() {
         let mut iqm_results: HashMap<String, Vec<Vec<u8>>> = HashMap::new();
         iqm_results.insert("reg1".to_string(), vec![vec![0, 1, 0], vec![1, 1, 0]]);
         iqm_results.insert("reg2".to_string(), vec![vec![1, 1], vec![1, 0]]);
 
-        let mut measured_qubits_map = HashMap::new();
-        measured_qubits_map.insert("reg1".to_string(), vec![0, 2, 4]);
-        measured_qubits_map.insert("reg2".to_string(), vec![1, 2]);
+        let mut measured_qubits_map_1 = HashMap::new();
+        let mut measured_qubits_map_2 = HashMap::new();
+        measured_qubits_map_1.insert("reg1".to_string(), (vec![0, 2, 4], 5));
+        measured_qubits_map_2.insert("reg2".to_string(), (vec![1, 2], 3));
+        let metadata = vec![measured_qubits_map_1, measured_qubits_map_2];
+
         let mut output_registers: HashMap<String, BitOutputRegister> = HashMap::new();
         output_registers.insert(
             "reg1".to_string(),
@@ -924,14 +909,27 @@ mod tests {
             vec![vec![false, true, true], vec![false, true, false]],
         );
 
-        let results = create_mock_run_results(iqm_results);
-        results_to_registers(results, &mut bit_registers, String::new()).unwrap();
+        let results = create_mock_run_results(iqm_results, &metadata);
+        let (bit_registers, _, _) = results_to_registers(results, String::new()).unwrap();
         assert_eq!(bit_registers, output_registers);
     }
 
-    fn create_mock_run_results(iqm_results: HashMap<String, Vec<Vec<u8>>>) -> IqmRunResult {
+    /// Helper function to create mocked result data structures
+    fn create_mock_run_results(
+        iqm_results: HashMap<String, Vec<Vec<u8>>>,
+        metadata: &[HashMap<String, (Vec<usize>, usize)>],
+    ) -> IqmRunResult {
+        let circuits: Vec<IqmCircuit> = metadata
+            .into_iter()
+            .enumerate()
+            .map(|(index, map)| IqmCircuit {
+                name: format!("{}", index),
+                instructions: vec![],
+                metadata: Some(map.clone()),
+            })
+            .collect();
         let request = IqmRunRequest {
-            circuits: vec![],
+            circuits,
             custom_settings: None,
             calibration_set_id: None,
             qubit_mapping: None,

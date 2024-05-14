@@ -65,7 +65,7 @@ pub struct IqmInstruction {
 // HashMap that associates to each register name the indices in the register that are being affected
 // by measurements. These indices are saved in the order in which the measurement operations appear
 // in the circuit, since this is the order in which the backend returns the results.
-pub(crate) type MeasuredQubitsMap = HashMap<String, Vec<usize>>;
+pub(crate) type MeasuredQubitsMap = HashMap<String, (Vec<usize>, usize)>;
 
 /// Converts all operations in a [roqoqo::Circuit] into instructions for IQM Hardware.
 ///
@@ -74,7 +74,6 @@ pub(crate) type MeasuredQubitsMap = HashMap<String, Vec<usize>>;
 /// * `circuit` - The [roqoqo::Circuit] that is converted
 /// * `device_number_qubits` - The number of qubits of the backend device. It is used to know how
 ///    many qubits to measure with [roqoqo::operations::PragmaRepeatedMeasurement]
-/// * `output_registers` - A mutable reference to the classical registers that need to be initialized
 /// * `number_measurements_internal` - If set, the number of measurements that has been overwritten
 /// in the backend
 /// * `circuit_index` - Index of the circuit in the batch, needed to assign a unique name to the circuit.
@@ -87,7 +86,6 @@ pub(crate) type MeasuredQubitsMap = HashMap<String, Vec<usize>>;
 pub fn call_circuit<'a>(
     circuit: impl Iterator<Item = &'a Operation>,
     device_number_qubits: usize,
-    output_registers: &mut HashMap<String, BitOutputRegister>,
     number_measurements_internal: Option<usize>,
     circuit_index: usize,
 ) -> Result<(IqmCircuit, usize), IqmBackendError> {
@@ -100,10 +98,8 @@ pub fn call_circuit<'a>(
         match op {
             Operation::DefinitionBit(o) => {
                 let name = (*o).name().to_string();
-                // initialize output registers with default `false` values
                 if *o.is_output() {
-                    output_registers.insert(name.clone(), vec![vec![false; *o.length()]]);
-                    measured_qubits_map.insert(name, vec![]);
+                    measured_qubits_map.insert(name, (vec![], *o.length()));
                 }
             }
             Operation::MeasureQubit(o) => {
@@ -111,7 +107,7 @@ pub fn call_circuit<'a>(
                 measured_qubits.push(*o.qubit());
 
                 match measured_qubits_map.get_mut(&readout) {
-                    Some(x) => x.push(*o.readout_index()),
+                    Some(x) => x.0.push(*o.readout_index()),
                     None => {
                         return Err(IqmBackendError::InvalidCircuit {
                             msg: "A MeasureQubit operation is writing to an undefined register."
@@ -163,7 +159,7 @@ pub fn call_circuit<'a>(
                 number_measurements = *o.number_measurements();
 
                 let readout = o.readout().clone();
-                let readout_register = output_registers.get(&readout);
+                let readout_register = measured_qubits_map.get(&readout);
 
                 match readout_register {
                     None => {
@@ -175,11 +171,7 @@ pub fn call_circuit<'a>(
                         })
                     }
                     Some(reg) => {
-                        let readout_length = reg
-                            .first()
-                            .expect("Something went wrong when initializing the output registers.")
-                            .len();
-
+                        let readout_length = reg.1;
                         if measured_qubits.len() > readout_length {
                             return Err(IqmBackendError::RegisterTooSmall { name: readout });
                         }
@@ -198,7 +190,8 @@ pub fn call_circuit<'a>(
 
                         // update register mapping with the only register specified by PragmaSetNumberOfMeasurements
                         measured_qubits_map = HashMap::new();
-                        measured_qubits_map.insert(readout.clone(), measured_qubits.clone());
+                        measured_qubits_map
+                            .insert(readout.clone(), (measured_qubits.clone(), readout_length));
 
                         // add single measurement instruction for all the qubits that were measured with MeasureQubit
                         let meas = IqmInstruction {
@@ -234,29 +227,27 @@ pub fn call_circuit<'a>(
                 let readout = o.readout().clone();
 
                 match o.qubit_mapping() {
-                    None => {
-                        match output_registers.get(&readout) {
-                            None => {
-                                return Err(IqmBackendError::InvalidCircuit {
-                                    msg: "A PragmaRepeatedMeasurement operation is writing to an \
+                    None => match measured_qubits_map.get(&readout) {
+                        None => {
+                            return Err(IqmBackendError::InvalidCircuit {
+                                msg: "A PragmaRepeatedMeasurement operation is writing to an \
                                            undefined register."
-                                        .to_string(),
-                                })
-                            }
-                            Some(reg) => {
-                                let readout_length = reg
-                                    .first()
-                                    .expect("Something went wrong when initializing the output registers.")
-                                    .len();
-                                measured_qubits_map
-                                    .insert(o.readout().to_string(), (0..readout_length).collect());
-                            }
+                                    .to_string(),
+                            })
                         }
-                    }
+                        Some(reg) => {
+                            let readout_length = reg.1;
+                            let readout_name = o.readout().to_string();
+                            measured_qubits_map.insert(
+                                readout_name,
+                                ((0..readout_length).collect(), readout_length),
+                            );
+                        }
+                    },
                     Some(map) => match measured_qubits_map.get_mut(o.readout()) {
                         Some(x) => {
                             for qubit in map.keys().sorted() {
-                                x.push(map[qubit])
+                                x.0.push(map[qubit])
                             }
                         }
                         None => {
@@ -305,13 +296,6 @@ pub fn call_circuit<'a>(
 
     if let Some(n) = number_measurements_internal {
         number_measurements = n
-    }
-
-    // Extend output registers to account for the correct number of shots
-    if number_measurements > 1 {
-        for (_, value) in output_registers.iter_mut() {
-            *value = vec![(*value)[0].to_vec(); number_measurements];
-        }
     }
 
     let iqm_circuit = IqmCircuit {
