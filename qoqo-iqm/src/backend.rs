@@ -19,7 +19,7 @@ use qoqo::convert_into_circuit;
 use roqoqo::prelude::*;
 use roqoqo::registers::Registers;
 use roqoqo::Circuit;
-use roqoqo_iqm::{Backend, IqmDevice};
+use roqoqo_iqm::{results_to_registers, Backend, IqmDevice};
 
 use bincode::{deserialize, serialize};
 use std::collections::HashMap;
@@ -238,6 +238,17 @@ impl BackendWrapper {
 
     /// Call the `evaluate` method of the measurement to compute the expectation values from the
     /// results received from IQM.
+    ///
+    /// Args:
+    ///     measurement (Measurement): The qoqo measurement to evaluate the expectation values
+    ///     registers (Registers): The output registers to process
+    ///
+    /// Returns:
+    ///     Optional[Dict[str, float]]: The results of the measurement
+    ///
+    /// Raises:
+    ///     RunTimeError: Something went wrong while processing the results
+    ///     TypeError: The `evaluate` function of the measurement was passed the wrong input type
     fn evaluate_measurement(
         &self,
         measurement: &PyAny,
@@ -262,12 +273,37 @@ impl BackendWrapper {
             })
     }
 
-    /// TODO
+    /// Query the IQM server for the results of a previously submitted job until timeout, process
+    /// the results and evaluate the measurement instruction.
+    ///
+    /// Args:
+    ///     id (str): The ID of the job
+    ///     measurement (Measurement): The qoqo measurement to evaluate the expectation values
+    ///
+    /// Returns:
+    ///     Optional[Dict[str, float]]: The results of the measurement
+    ///
+    /// Raises:
+    ///     RunTimeError: Something went wrong either while getting the results from the server or
+    ///     during post processing.
     pub fn get_measurement_results(
         &self,
         id: String,
         measurement: &PyAny,
     ) -> PyResult<Option<HashMap<String, f64>>> {
+        let results = self.internal.wait_for_results(id.clone()).map_err(|err| {
+            PyRuntimeError::new_err(format!(
+                "Something went wrong when getting the results from the server: {:?}",
+                err
+            ))
+        })?;
+        let registers = results_to_registers(results, id).map_err(|err| {
+            PyRuntimeError::new_err(format!(
+                "Something went wrong when processing the results into output registers: {:?}",
+                err
+            ))
+        })?;
+        self.evaluate_measurement(measurement, registers)
     }
 
     /// Submit a measurement to the backend for asynchronous execution.
@@ -288,7 +324,7 @@ impl BackendWrapper {
             ))
         })?;
         self.internal
-            .submit_circuit_batch(circuit_batch, bit_registers)
+            .submit_circuit_batch(circuit_batch)
             .map_err(|err| {
                 PyRuntimeError::new_err(format!(
                     "Something went wrong when submitting the job to the backend: {:?}",

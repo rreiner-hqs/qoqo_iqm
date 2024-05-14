@@ -10,7 +10,7 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Internal roqoqo-iqm
+//! roqoqo-iqm
 //!
 
 #![deny(missing_docs)]
@@ -96,7 +96,7 @@ mod interface;
 pub use interface::{call_circuit, call_operation, IqmCircuit, IqmInstruction};
 
 mod backend;
-pub use backend::Backend;
+pub use backend::*;
 
 pub mod devices;
 pub use devices::*;

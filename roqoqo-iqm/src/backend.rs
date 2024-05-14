@@ -379,15 +379,12 @@ impl Backend {
                 msg: format!("Error during GET request: {:?}", e),
             })?;
 
-        let iqm_result = result.json::<IqmRunResult>();
-        let iqm_result = match iqm_result {
-            Ok(res) => res,
-            Err(e) => {
-                return Err(RoqoqoBackendError::NetworkError {
-                    msg: format!("Error during deserialisation of GET response: {:?}", e),
-                });
-            }
-        };
+        let iqm_result =
+            result
+                .json::<IqmRunResult>()
+                .map_err(|err| RoqoqoBackendError::NetworkError {
+                    msg: format!("Error during deserialisation of GET response: {:?}", err),
+                })?;
 
         if iqm_result.warnings.is_some() {
             eprintln!("Warnings: {:?}", iqm_result.clone().warnings.unwrap());
@@ -754,8 +751,10 @@ fn get_measured_qubits_map(results: &IqmRunResult) -> Result<MeasuredQubitsMap, 
 ///
 /// `Ok(Registers)` - The output registers constructed by processing the results.
 /// `Err(IqmBackendError)` - Something went wrong with the processing of the results.
-#[inline]
-fn results_to_registers(results: IqmRunResult, id: String) -> Result<Registers, IqmBackendError> {
+pub fn results_to_registers(
+    results: IqmRunResult,
+    id: String,
+) -> Result<Registers, IqmBackendError> {
     let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
     let float_registers: HashMap<String, FloatOutputRegister> = HashMap::new();
     let complex_registers: HashMap<String, ComplexOutputRegister> = HashMap::new();

@@ -17,7 +17,6 @@ use std::f64::consts::PI;
 
 use qoqo_calculator::CalculatorFloat;
 use roqoqo::operations::*;
-use roqoqo::registers::BitOutputRegister;
 use roqoqo::RoqoqoBackendError;
 
 use crate::IqmBackendError;
