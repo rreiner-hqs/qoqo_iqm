@@ -14,7 +14,7 @@ use roqoqo::devices::Device;
 use roqoqo::prelude::*;
 use roqoqo::{operations::*, Circuit};
 use roqoqo_iqm::devices::DenebDevice;
-use roqoqo_iqm::Backend;
+use roqoqo_iqm::{Backend, GarnetDevice, IqmBackendError};
 use std::env;
 use std::f64::consts::PI;
 
@@ -58,7 +58,7 @@ fn test_register_initialization() {
 }
 
 #[test]
-fn run_circuit_single_measurements() {
+fn run_circuit_single_measurements_deneb_passes() {
     if env::var("IQM_TOKEN").is_ok() {
         let device = DenebDevice::new();
         let backend = Backend::new(device.into(), None).unwrap();
@@ -68,16 +68,220 @@ fn run_circuit_single_measurements() {
         qc += CZQubitResonator::new(1, 0);
         qc += SingleExcitationStore::new(5, 0);
         qc += SingleExcitationLoad::new(5, 0);
-        qc += DefinitionBit::new("my_reg1".to_string(), 5, true);
-        qc += DefinitionBit::new("my_reg2".to_string(), 7, true);
-        qc += MeasureQubit::new(2, "my_reg1".to_string(), 2);
-        qc += MeasureQubit::new(3, "my_reg1".to_string(), 3);
-        qc += MeasureQubit::new(1, "my_reg2".to_string(), 1);
+        qc += DefinitionBit::new("reg1".to_string(), 5, true);
+        qc += DefinitionBit::new("reg2".to_string(), 7, true);
+        qc += MeasureQubit::new(2, "reg1".to_string(), 2);
+        qc += MeasureQubit::new(3, "reg1".to_string(), 3);
+        qc += MeasureQubit::new(1, "reg2".to_string(), 1);
 
         let (bit_registers, _float_registers, _complex_registers) =
             backend.run_circuit(&qc).unwrap();
-        assert!(bit_registers.contains_key("my_reg1"));
-        assert!(bit_registers.contains_key("my_reg2"));
+
+        assert!(bit_registers.contains_key("reg1"));
+        assert!(bit_registers.contains_key("reg2"));
+
+        let res1 = bit_registers.get("reg1").unwrap();
+        let res2 = bit_registers.get("reg2").unwrap();
+
+        // check number of measurements
+        assert_eq!(res1.len(), 1);
+        assert_eq!(res2.len(), 1);
+
+        // check register length
+        assert_eq!(res1[0].len(), 5);
+        assert_eq!(res2[0].len(), 7);
+    } else {
+        eprintln!("No IQM_TOKEN environment variable found.")
+    }
+}
+
+#[test]
+fn run_circuit_multiple_measurements_deneb_passes() {
+    if env::var("IQM_TOKEN").is_ok() {
+        let number_measurements = 10;
+        let device = DenebDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+        let mut qc = Circuit::new();
+
+        qc += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc += CZQubitResonator::new(1, 0);
+        qc += SingleExcitationStore::new(5, 0);
+        qc += SingleExcitationLoad::new(5, 0);
+        qc += DefinitionBit::new("reg1".to_string(), 5, true);
+        qc += DefinitionBit::new("reg2".to_string(), 7, true);
+        qc += MeasureQubit::new(2, "reg1".to_string(), 2);
+        qc += MeasureQubit::new(3, "reg1".to_string(), 3);
+        qc += MeasureQubit::new(1, "reg2".to_string(), 1);
+        qc += PragmaSetNumberOfMeasurements::new(number_measurements, "reg1".to_string());
+        qc += PragmaSetNumberOfMeasurements::new(number_measurements, "reg2".to_string());
+
+        let (bit_registers, _float_registers, _complex_registers) =
+            backend.run_circuit(&qc).unwrap();
+
+        assert!(bit_registers.contains_key("reg1"));
+        assert!(bit_registers.contains_key("reg2"));
+
+        let res1 = bit_registers.get("reg1").unwrap();
+        let res2 = bit_registers.get("reg2").unwrap();
+
+        // check number of measurements
+        assert_eq!(res1.len(), number_measurements);
+        assert_eq!(res2.len(), number_measurements);
+
+        // check register length
+        assert_eq!(res1[0].len(), 5);
+        assert_eq!(res2[0].len(), 7);
+    } else {
+        eprintln!("No IQM_TOKEN environment variable found.")
+    }
+}
+
+#[test]
+fn run_circuit_multiple_measurements_garnet_passes() {
+    if env::var("IQM_TOKEN").is_ok() {
+        let number_measurements = 10;
+        let device = GarnetDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+        let mut qc = Circuit::new();
+
+        qc += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc += ControlledPauliZ::new(0, 1);
+        qc += DefinitionBit::new("reg1".to_string(), 5, true);
+        qc += DefinitionBit::new("reg2".to_string(), 7, true);
+        qc += MeasureQubit::new(2, "reg1".to_string(), 2);
+        qc += MeasureQubit::new(3, "reg1".to_string(), 3);
+        qc += MeasureQubit::new(1, "reg2".to_string(), 1);
+        qc += PragmaSetNumberOfMeasurements::new(number_measurements, "reg1".to_string());
+        qc += PragmaSetNumberOfMeasurements::new(number_measurements, "reg2".to_string());
+
+        let (bit_registers, _float_registers, _complex_registers) =
+            backend.run_circuit(&qc).unwrap();
+
+        assert!(bit_registers.contains_key("reg1"));
+        assert!(bit_registers.contains_key("reg2"));
+
+        let res1 = bit_registers.get("reg1").unwrap();
+        let res2 = bit_registers.get("reg2").unwrap();
+
+        // check number of measurements
+        assert_eq!(res1.len(), number_measurements);
+        assert_eq!(res2.len(), number_measurements);
+
+        // check register length
+        assert_eq!(res1[0].len(), 5);
+        assert_eq!(res2[0].len(), 7);
+    } else {
+        eprintln!("No IQM_TOKEN environment variable found.")
+    }
+}
+
+#[test]
+fn run_circuit_batch_single_measurement_garnet_passes() {
+    if env::var("IQM_TOKEN").is_ok() {
+        let number_measurements = 10;
+        let device = GarnetDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+
+        let mut qc1 = Circuit::new();
+        qc1 += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc1 += ControlledPauliZ::new(0, 1);
+        qc1 += DefinitionBit::new("reg1".to_string(), 5, true);
+        qc1 += MeasureQubit::new(2, "reg1".to_string(), 2);
+        qc1 += MeasureQubit::new(3, "reg1".to_string(), 3);
+        qc1 += PragmaSetNumberOfMeasurements::new(number_measurements, "reg1".to_string());
+
+        let mut qc2 = Circuit::new();
+        qc2 += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc2 += ControlledPauliZ::new(0, 1);
+        qc2 += DefinitionBit::new("reg2".to_string(), 5, true);
+        qc2 += MeasureQubit::new(2, "reg2".to_string(), 2);
+        qc2 += MeasureQubit::new(3, "reg2".to_string(), 3);
+        qc2 += PragmaSetNumberOfMeasurements::new(number_measurements, "reg2".to_string());
+
+        let batch = vec![qc1, qc2];
+        let (bit_registers, _float_registers, _complex_registers) =
+            backend.run_circuit_batch(batch).unwrap();
+
+        assert!(bit_registers.contains_key("reg1"));
+        assert!(bit_registers.contains_key("reg2"));
+
+        let res1 = bit_registers.get("reg1").unwrap();
+        let res2 = bit_registers.get("reg2").unwrap();
+
+        // check number of measurements
+        assert_eq!(res1.len(), number_measurements);
+        assert_eq!(res2.len(), number_measurements);
+
+        // check register length
+        assert_eq!(res1[0].len(), 5);
+        assert_eq!(res2[0].len(), 7);
+    } else {
+        eprintln!("No IQM_TOKEN environment variable found.")
+    }
+}
+
+// Test that an error is returned when different circuits in the batch write to the same output register
+#[test]
+fn run_circuit_batch_single_measurement_same_reg_error() {
+    if env::var("IQM_TOKEN").is_ok() {
+        let number_measurements = 10;
+        let device = GarnetDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+
+        let mut qc1 = Circuit::new();
+        qc1 += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc1 += ControlledPauliZ::new(0, 1);
+        qc1 += DefinitionBit::new("reg1".to_string(), 5, true);
+        qc1 += MeasureQubit::new(2, "reg1".to_string(), 2);
+        qc1 += MeasureQubit::new(3, "reg1".to_string(), 3);
+        qc1 += PragmaSetNumberOfMeasurements::new(number_measurements, "reg1".to_string());
+
+        let mut qc2 = Circuit::new();
+        qc2 += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc2 += ControlledPauliZ::new(0, 1);
+        qc2 += DefinitionBit::new("reg1".to_string(), 5, true);
+        qc2 += MeasureQubit::new(2, "reg1".to_string(), 2);
+        qc2 += MeasureQubit::new(3, "reg1".to_string(), 3);
+        qc2 += PragmaSetNumberOfMeasurements::new(number_measurements, "reg1".to_string());
+
+        let batch = vec![qc1, qc2];
+        let err = backend.run_circuit_batch(batch);
+
+        assert!(matches!(err, Err(IqmBackendError::InvalidCircuit { .. })));
+    } else {
+        eprintln!("No IQM_TOKEN environment variable found.")
+    }
+}
+
+// Test that an error is returned when different circuits in the batch have different numbers of measurements
+#[test]
+fn run_circuit_batch_single_measurement_different_number_measurements_error() {
+    if env::var("IQM_TOKEN").is_ok() {
+        let device = GarnetDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+        let number_measurements_1 = 10;
+        let number_measurements_2 = 20;
+
+        let mut qc1 = Circuit::new();
+        qc1 += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc1 += ControlledPauliZ::new(0, 1);
+        qc1 += DefinitionBit::new("reg1".to_string(), 5, true);
+        qc1 += MeasureQubit::new(2, "reg1".to_string(), 2);
+        qc1 += MeasureQubit::new(3, "reg1".to_string(), 3);
+        qc1 += PragmaSetNumberOfMeasurements::new(number_measurements_1, "reg1".to_string());
+
+        let mut qc2 = Circuit::new();
+        qc2 += RotateXY::new(2, 1.0.into(), 1.0.into());
+        qc2 += ControlledPauliZ::new(0, 1);
+        qc2 += DefinitionBit::new("reg2".to_string(), 5, true);
+        qc2 += MeasureQubit::new(2, "reg2".to_string(), 2);
+        qc2 += MeasureQubit::new(3, "reg2".to_string(), 3);
+        qc2 += PragmaSetNumberOfMeasurements::new(number_measurements_2, "reg2".to_string());
+
+        let batch = vec![qc1, qc2];
+        let err = backend.run_circuit_batch(batch);
+
+        assert!(matches!(err, Err(IqmBackendError::InvalidCircuit { .. })));
     } else {
         eprintln!("No IQM_TOKEN environment variable found.")
     }
@@ -119,7 +323,7 @@ fn run_circuit_repeated_measurements() {
 
 #[test]
 #[should_panic]
-fn disconnected_qubits() {
+fn disconnected_qubits_deneb() {
     let device = DenebDevice::new();
     let backend = Backend::new(device.into(), None).unwrap();
     let mut qc = Circuit::new();
