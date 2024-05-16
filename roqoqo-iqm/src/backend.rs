@@ -305,11 +305,13 @@ impl Backend {
         }
 
         // Check that
-        // 1) Every qubit is only measured once
+        // 1) Every qubit is measured exactly once
         // 2) Output registers are large enough
+        let mut measured = false;
         for op in circuit.iter() {
             match op {
                 Operation::MeasureQubit(o) => {
+                    measured = true;
                     let qubit = *o.qubit();
                     if measured_qubits.contains(&qubit) {
                         return Err(IqmBackendError::InvalidCircuit {
@@ -320,6 +322,7 @@ impl Backend {
                     }
                 }
                 Operation::PragmaRepeatedMeasurement(o) => {
+                    measured = true;
                     if !measured_qubits.is_empty() {
                         return Err(IqmBackendError::InvalidCircuit {
                             msg: "Qubits are being measured more than once. When using \
@@ -348,7 +351,14 @@ impl Backend {
                 _ => (),
             }
         }
-        Ok(())
+        if !measured {
+            Err(IqmBackendError::InvalidCircuit {
+                msg: "All circuits submitted need to have at least one measurement instruction."
+                    .to_string(),
+            })
+        } else {
+            Ok(())
+        }
     }
 
     /// Query results of a submitted job.
@@ -445,7 +455,7 @@ impl Backend {
             .build()
             .map_err(|err| {
                 IqmBackendError::RoqoqoBackendError(RoqoqoBackendError::NetworkError {
-                    msg: format!("could not create https client {:?}", err),
+                    msg: format!("Could not create HTTPS client {:?}", err),
                 })
             })?;
 
@@ -546,8 +556,8 @@ impl Backend {
         }
         if output_registers.len() < circuit_batch.len() {
             return Err(IqmBackendError::InvalidCircuit {
-                msg: "When submitting a batch of circuits, they need to write to
-                      different output registers."
+                msg: "When submitting a batch of circuits, they need to write to different output \
+                      registers."
                     .to_string(),
             });
         }

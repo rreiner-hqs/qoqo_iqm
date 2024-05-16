@@ -10,12 +10,12 @@
 // express or implied. See the License for the specific language governing permissions and
 // limitations under the License.
 
-use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
+use pyo3::exceptions::{PyConnectionError, PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyByteArray;
 
 use crate::devices::*;
-use qoqo::convert_into_circuit;
+use qoqo::{convert_into_circuit, CircuitWrapper};
 use roqoqo::prelude::*;
 use roqoqo::registers::Registers;
 use roqoqo::Circuit;
@@ -46,7 +46,7 @@ impl BackendWrapper {
     ///
     /// Args:
     ///     input (Backend): The Python object that should be casted to a [roqoqo_iqm::Backend]
-    pub fn from_pyany(input: Py<PyAny>) -> PyResult<Backend> {
+    pub fn from_pyany(input: PyObject) -> PyResult<Backend> {
         Python::with_gil(|py| -> PyResult<Backend> {
             let input = input.as_ref(py);
             if let Ok(try_downcast) = input.extract::<BackendWrapper>() {
@@ -179,6 +179,32 @@ impl BackendWrapper {
         })
     }
 
+    /// Get information about the quantum architecture of the given device.
+    ///
+    /// Returns:
+    ///     str: Information about the quantum architecture of the device.
+    ///
+    /// Raises:
+    ///     ConnectionError: A connection error when fetching the information.
+    pub fn get_quantum_architecture(&self) -> PyResult<String> {
+        self.internal
+            .get_quantum_architecture()
+            .map_err(|err| PyConnectionError::new_err(err.to_string()))
+    }
+
+    /// Abort a submitted job.
+    ///
+    /// Args:
+    ///     id (str): The ID of the job to abort.
+    ///
+    /// Returns
+    ///     ConnectionError: A connection error when sending the request.
+    pub fn abort_job(&self, id: String) -> PyResult<()> {
+        self.internal
+            .abort_job(id)
+            .map_err(|err| PyConnectionError::new_err(err.to_string()))
+    }
+
     /// Run a circuit with the IQM backend and poll results until job is either ready, failed,
     /// aborted or timed out.
     ///
@@ -306,13 +332,71 @@ impl BackendWrapper {
         self.evaluate_measurement(measurement, registers)
     }
 
+    /// Submit a batch of circuits to the backend for asynchronous execution.
+    ///
+    /// Args:
+    ///     circuits (List[Circuit]): The circuit batch that is submitted to the backend.
+    ///
+    /// Returns:
+    ///     str: Job ID to retrieve the results.
+    ///
+    /// Raises:
+    ///     RuntimeError: Something went wrong when submitting the job to the backend.
+    pub fn submit_circuit_batch(&self, circuits: Vec<PyObject>) -> PyResult<String> {
+        let mut circuit_batch: Vec<Circuit> = Vec::new();
+        for circuit in circuits.into_iter() {
+            let tmp_circuit = CircuitWrapper::from_pyany(circuit).map_err(|err| {
+                PyTypeError::new_err(format!(
+                    "`circuits` argument is not a list of qoqo Circuits: {}",
+                    err
+                ))
+            })?;
+            circuit_batch.push(tmp_circuit)
+        }
+        self.internal
+            .submit_circuit_batch(&circuit_batch)
+            .map_err(|err| {
+                PyRuntimeError::new_err(format!(
+                    "Something went wrong when submitting the job to the backend: {:?}",
+                    err
+                ))
+            })
+    }
+
+    /// Fetch the results of a previously submitted batch run from the server.
+    ///
+    /// Args:
+    ///     id (str): The ID of the job
+    ///
+    /// Returns:
+    ///     Registers: Tuple of qoqo registers containing the raw results of the measurements
+    ///
+    /// Raises:
+    ///     ConnectionError: Something went wrong when getting the results
+    ///     PyRuntimeError: Something went wrong when converting the results into the qoqo registers
+    ///     format
+    pub fn get_batch_raw_result(&self, id: String) -> PyResult<Registers> {
+        let results = self.internal.wait_for_results(id.clone()).map_err(|err| {
+            PyConnectionError::new_err(format!(
+                "Something went wrong when retrieving the results of a batch run: {}",
+                err
+            ))
+        })?;
+        results_to_registers(results, id).map_err(|err| {
+            PyRuntimeError::new_err(format!(
+                "Something went wrong when post processing the results of a batch run: {}",
+                err
+            ))
+        })
+    }
+
     /// Submit a measurement to the backend for asynchronous execution.
     ///
     /// Args:
     ///     measurement (Measurement): The measurement that is submitted to the backend.
     ///
     /// Returns:
-    ///     str: Job ID to retrieve the results
+    ///     str: Job ID to retrieve the results.
     ///
     /// Raises:
     ///     RuntimeError: Something went wrong when submitting the job to the backend.
