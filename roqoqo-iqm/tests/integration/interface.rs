@@ -12,7 +12,6 @@
 
 use qoqo_calculator::CalculatorFloat;
 use roqoqo::operations;
-use roqoqo::registers::BitOutputRegister;
 use roqoqo::{Circuit, RoqoqoBackendError};
 use roqoqo_iqm::{call_circuit, call_operation, IqmCircuit, IqmInstruction};
 
@@ -79,22 +78,20 @@ fn test_failure_unsupported_operation(operation: operations::Operation) {
 
 #[test]
 fn test_call_circuit_repeated_measurement() {
-    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
     let mut inner_circuit = Circuit::new();
     inner_circuit += operations::ControlledPauliZ::new(0, 1);
 
     let mut circuit = Circuit::new();
+    let register_length = 2;
     circuit += operations::ControlledPauliZ::new(0, 1);
     circuit += operations::RotateXY::new(0, PI.into(), PI.into());
     circuit += operations::CZQubitResonator::new(1, 0);
     circuit += operations::SingleExcitationStore::new(5, 0);
     circuit += operations::SingleExcitationLoad::new(5, 0);
     circuit += operations::PragmaLoop::new(CalculatorFloat::Float(3.0), inner_circuit);
-    circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
+    circuit += operations::DefinitionBit::new("ro".to_string(), register_length, true);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 10, None);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None)
-        .unwrap()
-        .0;
+    let res = call_circuit(circuit.iter(), 2, None, 1).unwrap().0;
 
     let cz_instruction = IqmInstruction {
         name: "cz".to_string(),
@@ -142,9 +139,13 @@ fn test_call_circuit_repeated_measurement() {
     }
     instruction_vec.push(meas_instruction);
 
+    let mut metadata = HashMap::new();
+    metadata.insert("ro".to_string(), (vec![0, 1], register_length));
+
     let res_expected: IqmCircuit = IqmCircuit {
-        name: String::from("my_qc"),
+        name: String::from("qc_1"),
         instructions: instruction_vec,
+        metadata: Some(metadata),
     };
 
     assert_eq!(res, res_expected)
@@ -152,17 +153,14 @@ fn test_call_circuit_repeated_measurement() {
 
 #[test]
 fn test_call_circuit_single_measurement() {
-    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
-
     let mut circuit = Circuit::new();
+    let register_length = 2;
     circuit += operations::ControlledPauliZ::new(0, 1);
     circuit += operations::RotateXY::new(0, PI.into(), PI.into());
-    circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
+    circuit += operations::DefinitionBit::new("ro".to_string(), register_length, true);
     circuit += operations::MeasureQubit::new(0, "ro".to_string(), 0);
     circuit += operations::MeasureQubit::new(1, "ro".to_string(), 1);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None)
-        .unwrap()
-        .0;
+    let res = call_circuit(circuit.iter(), 2, None, 1).unwrap().0;
 
     let cz_instruction = IqmInstruction {
         name: "cz".to_string(),
@@ -185,50 +183,51 @@ fn test_call_circuit_single_measurement() {
 
     let instruction_vec = vec![cz_instruction, xy_instruction, meas_instruction];
 
+    let mut metadata = HashMap::new();
+    metadata.insert("ro".to_string(), (vec![0, 1], register_length));
+
     let res_expected: IqmCircuit = IqmCircuit {
-        name: String::from("my_qc"),
+        name: String::from("qc_1"),
         instructions: instruction_vec,
+        metadata: Some(metadata),
     };
 
     assert_eq!(res, res_expected)
 }
 
 #[test]
-fn test_call_circuit_repeated_measurements_with_mappping() {
-    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
+fn test_call_circuit_repeated_measurements_with_mapping() {
     let mut circuit = Circuit::new();
     circuit += operations::ControlledPauliZ::new(0, 1);
     circuit += operations::RotateXY::new(0, 1.0.into(), 1.0.into());
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     let qubit_mapping = HashMap::from([(0, 1), (1, 0)]);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, Some(qubit_mapping));
-    let ok = call_circuit(circuit.iter(), 2, &mut bit_registers, None).is_ok();
+    let ok = call_circuit(circuit.iter(), 2, None, 1).is_ok();
 
     assert!(ok);
 }
 
 #[test]
 fn test_fail_multiple_repeated_measurements() {
-    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
     let mut circuit = Circuit::new();
     circuit += operations::ControlledPauliZ::new(0, 1);
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::PragmaSetNumberOfMeasurements::new(5, "ro".to_string());
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, None);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None);
+    let res = call_circuit(circuit.iter(), 2, None, 1);
 
     assert!(res.is_err());
 }
 
 #[test]
 fn test_fail_overlapping_measurements() {
-    let mut bit_registers: HashMap<String, BitOutputRegister> = HashMap::new();
     let mut circuit = Circuit::new();
     circuit += operations::ControlledPauliZ::new(0, 1);
     circuit += operations::DefinitionBit::new("ro".to_string(), 2, true);
     circuit += operations::MeasureQubit::new(0, "ro".to_string(), 0);
     circuit += operations::PragmaRepeatedMeasurement::new("ro".to_string(), 3, None);
-    let res = call_circuit(circuit.iter(), 2, &mut bit_registers, None);
+    let res = call_circuit(circuit.iter(), 2, None, 1);
 
     assert!(res.is_err());
 }

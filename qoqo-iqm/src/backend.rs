@@ -19,7 +19,7 @@ use qoqo::convert_into_circuit;
 use roqoqo::prelude::*;
 use roqoqo::registers::Registers;
 use roqoqo::Circuit;
-use roqoqo_iqm::{Backend, IqmDevice};
+use roqoqo_iqm::{results_to_registers, Backend, IqmDevice};
 
 use bincode::{deserialize, serialize};
 use std::collections::HashMap;
@@ -211,36 +211,6 @@ impl BackendWrapper {
             .map_err(|err| PyRuntimeError::new_err(format!("Running Circuit failed: {:?}", err)))
     }
 
-    /// Run all circuits corresponding to one measurement with the IQM backend.
-    ///
-    /// An expectation value measurement in general involves several circuits.
-    /// Each circuit is passed to the backend and executed separately.
-    /// During execution values are written to and read from classical registers
-    /// (List[bool], List[float], List[complex]).
-    /// To produce sufficient statistics for evaluating expectation values,
-    /// circuits have to be run multiple times.
-    /// The results of each repetition are concatenated in OutputRegisters
-    /// (List[List[bool]], List[List[float]], List[List[complex]]).  
-    ///
-    /// Args:
-    ///     measurement (Measurement): The measurement that is run on the backend.
-    ///
-    /// Returns:
-    ///     Tuple[Dict[str, List[List[bool]]], Dict[str, List[List[float]]]], Dict[str, List[List[complex]]]]: The output registers written by the evaluated circuits.
-    ///
-    /// Raises:
-    ///     TypeError: Circuit argument cannot be converted to qoqo Circuit
-    ///     RuntimeError: Running Circuit failed
-    pub fn run_measurement_registers(&self, measurement: &PyAny) -> PyResult<Registers> {
-        let circuit_list = get_circuit_list_from_measurement(measurement)?;
-        self.internal.run_circuit_list(circuit_list).map_err(|err| {
-            PyRuntimeError::new_err(format!(
-                "Something went wrong when running the list of circuits: {:?}",
-                err
-            ))
-        })
-    }
-
     /// Runs a measurement with the IQM backend and waits for results.
     ///
     /// Args:
@@ -253,25 +223,113 @@ impl BackendWrapper {
     ///     TypeError: Measurement evaluate function could not be used
     ///     RuntimeError: Internal error measurement. Evaluation returned unknown type
     pub fn run_measurement(&self, measurement: &PyAny) -> PyResult<Option<HashMap<String, f64>>> {
-        let (bit_registers, float_registers, complex_registers) =
-            self.run_measurement_registers(measurement)?;
-        let get_expectation_values = measurement
-            .call_method1(
-                "evaluate",
-                (bit_registers, float_registers, complex_registers),
-            )
+        let circuit_batch = get_circuit_list_from_measurement(measurement)?;
+        let registers = self
+            .internal
+            .run_circuit_batch(circuit_batch)
             .map_err(|err| {
-                PyTypeError::new_err(format!(
-                    "Measurement `evaluate` function could not be used: {:?}",
+                PyRuntimeError::new_err(format!(
+                    "Something went wrong when running the list of circuits: {:?}",
                     err
                 ))
             })?;
+        self.evaluate_measurement(measurement, registers)
+    }
+
+    /// Call the `evaluate` method of the measurement to compute the expectation values from the
+    /// results received from IQM.
+    ///
+    /// Args:
+    ///     measurement (Measurement): The qoqo measurement to evaluate the expectation values
+    ///     registers (Registers): The output registers to process
+    ///
+    /// Returns:
+    ///     Optional[Dict[str, float]]: The results of the measurement
+    ///
+    /// Raises:
+    ///     RunTimeError: Something went wrong while processing the results
+    ///     TypeError: The `evaluate` function of the measurement was passed the wrong input type
+    fn evaluate_measurement(
+        &self,
+        measurement: &PyAny,
+        registers: Registers,
+    ) -> PyResult<Option<HashMap<String, f64>>> {
+        let get_expectation_values =
+            measurement
+                .call_method1("evaluate", registers)
+                .map_err(|err| {
+                    PyTypeError::new_err(format!(
+                        "Measurement `evaluate` function could not be used: {:?}",
+                        err
+                    ))
+                })?;
+
         get_expectation_values
             .extract::<Option<HashMap<String, f64>>>()
             .map_err(|_| {
                 PyRuntimeError::new_err(
                     "Internal error measurement. Evaluation returned unknown type.",
                 )
+            })
+    }
+
+    /// Query the IQM server for the results of a previously submitted job until timeout, process
+    /// the results and evaluate the measurement instruction.
+    ///
+    /// Args:
+    ///     id (str): The ID of the job
+    ///     measurement (Measurement): The qoqo measurement to evaluate the expectation values
+    ///
+    /// Returns:
+    ///     Optional[Dict[str, float]]: The results of the measurement
+    ///
+    /// Raises:
+    ///     RunTimeError: Something went wrong either while getting the results from the server or
+    ///     during post processing.
+    pub fn get_measurement_results(
+        &self,
+        id: String,
+        measurement: &PyAny,
+    ) -> PyResult<Option<HashMap<String, f64>>> {
+        let results = self.internal.wait_for_results(id.clone()).map_err(|err| {
+            PyRuntimeError::new_err(format!(
+                "Something went wrong when getting the results from the server: {:?}",
+                err
+            ))
+        })?;
+        let registers = results_to_registers(results, id).map_err(|err| {
+            PyRuntimeError::new_err(format!(
+                "Something went wrong when processing the results into output registers: {:?}",
+                err
+            ))
+        })?;
+        self.evaluate_measurement(measurement, registers)
+    }
+
+    /// Submit a measurement to the backend for asynchronous execution.
+    ///
+    /// Args:
+    ///     measurement (Measurement): The measurement that is submitted to the backend.
+    ///
+    /// Returns:
+    ///     str: Job ID to retrieve the results
+    ///
+    /// Raises:
+    ///     RuntimeError: Something went wrong when submitting the job to the backend.
+    pub fn submit_measurement(&self, measurement: &PyAny) -> PyResult<String> {
+        let circuit_batch = get_circuit_list_from_measurement(measurement).map_err(|err| {
+            PyRuntimeError::new_err(format!(
+                "Something went wrong when extracting the circuit list from the measurement: {:?}",
+                err
+            ))
+        })?;
+        self.internal
+            .submit_circuit_batch(circuit_batch)
+            .map_err(|err| {
+                PyRuntimeError::new_err(format!(
+                    "Something went wrong when submitting the job to the backend: {:?}",
+                    err
+                ))
             })
     }
 }
