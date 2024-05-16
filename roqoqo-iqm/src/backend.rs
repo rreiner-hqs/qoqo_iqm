@@ -312,7 +312,7 @@ impl Backend {
                 Operation::MeasureQubit(o) => {
                     let qubit = *o.qubit();
                     if measured_qubits.contains(&qubit) {
-                        return Err(IqmBackendError::QubitMeasuredMultipleTimes {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: format!("Qubit {} is being measured multiple times.", qubit),
                         });
                     } else {
@@ -321,7 +321,7 @@ impl Backend {
                 }
                 Operation::PragmaRepeatedMeasurement(o) => {
                     if !measured_qubits.is_empty() {
-                        return Err(IqmBackendError::QubitMeasuredMultipleTimes {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: "Qubits are being measured more than once. When using \
                                 PragmaRepeatedMeasurement, there should not be individual qubit \
                                 measurements, and the PragmaRepeatedMeasurement operation can \
@@ -524,7 +524,7 @@ impl Backend {
     /// # Returns
     ///
     /// * `Err(IqmBackendError)` - The batch is invalid.
-    fn validate_circuit_batch(&self, circuit_batch: &[Circuit]) -> Result<(), IqmBackendError> {
+    pub fn validate_circuit_batch(&self, circuit_batch: &[Circuit]) -> Result<(), IqmBackendError> {
         let mut output_registers = HashSet::new();
         for circuit in circuit_batch.iter() {
             self.validate_circuit(circuit)?;
@@ -566,14 +566,14 @@ impl Backend {
     /// * `Err(RoqoqoBackendError::NetworkError)` - Something went wrong when submitting the job.
     pub fn submit_circuit_batch(
         &self,
-        circuit_batch: Vec<Circuit>,
+        circuit_batch: &[Circuit],
     ) -> Result<String, IqmBackendError> {
-        self.validate_circuit_batch(&circuit_batch)?;
+        self.validate_circuit_batch(circuit_batch)?;
 
         let mut circuits = vec![];
         let mut number_measurements_set = HashSet::new();
 
-        for (circuit_index, circuit) in circuit_batch.into_iter().enumerate() {
+        for (circuit_index, circuit) in circuit_batch.iter().enumerate() {
             let (iqm_circuit, number_measurements) = call_circuit(
                 circuit.iter(),
                 self.device.number_qubits(),
@@ -654,7 +654,7 @@ impl Backend {
     /// `Err(RoqoqoBackendError)` - Transparent propagation of errors.
     pub fn run_circuit_batch(
         &self,
-        circuit_batch: Vec<Circuit>,
+        circuit_batch: &[Circuit],
     ) -> Result<Registers, IqmBackendError> {
         let id = self.submit_circuit_batch(circuit_batch)?;
         let results = self.wait_for_results(id.clone())?;
@@ -676,7 +676,7 @@ impl EvaluatingBackend for Backend {
         circuit: impl Iterator<Item = &'a Operation>,
     ) -> RegisterResult {
         let circuit: Circuit = circuit.into_iter().cloned().collect();
-        self.run_circuit_batch(vec![circuit])
+        self.run_circuit_batch(&[circuit])
             .map_err(|err| RoqoqoBackendError::GenericError {
                 msg: err.to_string(),
             })

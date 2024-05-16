@@ -57,12 +57,6 @@ pub enum IqmBackendError {
     /// Circuit passed to the backend is empty
     #[error("An empty circuit was passed to the backend.")]
     EmptyCircuit,
-    /// A qubit is being measured multiple times in the qoqo circuit provided.
-    #[error("{msg}")]
-    QubitMeasuredMultipleTimes {
-        /// Message
-        msg: String,
-    },
     /// Readout register is too small for the number of qubits in the circuit.
     #[error("Readout register {name} is not large enough for the number of qubits.")]
     RegisterTooSmall {

@@ -226,7 +226,7 @@ impl BackendWrapper {
         let circuit_batch = get_circuit_list_from_measurement(measurement)?;
         let registers = self
             .internal
-            .run_circuit_batch(circuit_batch)
+            .run_circuit_batch(&circuit_batch)
             .map_err(|err| {
                 PyRuntimeError::new_err(format!(
                     "Something went wrong when running the list of circuits: {:?}",
@@ -324,7 +324,7 @@ impl BackendWrapper {
             ))
         })?;
         self.internal
-            .submit_circuit_batch(circuit_batch)
+            .submit_circuit_batch(&circuit_batch)
             .map_err(|err| {
                 PyRuntimeError::new_err(format!(
                     "Something went wrong when submitting the job to the backend: {:?}",

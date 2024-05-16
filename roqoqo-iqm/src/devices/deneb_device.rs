@@ -170,7 +170,7 @@ impl DenebDevice {
             match op {
                 Operation::RotateXY(o) => {
                     let qubit = *o.qubit();
-                    if qubit > self.number_qubits() {
+                    if qubit >= self.number_qubits() {
                         return Err(IqmBackendError::InvalidCircuit {
                             msg: format!(
                                 "Too many qubits involved in the circuit: 
@@ -186,7 +186,7 @@ impl DenebDevice {
                 Operation::CZQubitResonator(o) => {
                     let qubit = *o.qubit();
                     let resonator = *o.mode();
-                    if qubit > self.number_qubits() {
+                    if qubit >= self.number_qubits() {
                         return Err(IqmBackendError::InvalidCircuit {
                             msg: format!(
                                 "Too many qubits involved in the circuit: 
