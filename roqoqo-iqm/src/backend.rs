@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 // Timeout for querying the REST API for results
 const TIMEOUT_SECS: f64 = 60.0;
 // Time interval between REST API queries
-const SECONDS_BETWEEN_CALLS: f64 = 1.0;
+const SECONDS_BETWEEN_CALLS: f64 = 4.0;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct SingleQubitMapping {
@@ -41,6 +41,7 @@ struct SingleQubitMapping {
     physical_name: String,
 }
 
+/// Representation of the request to be sent to the server.
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct IqmRunRequest {
     circuits: Vec<IqmCircuit>,
@@ -52,7 +53,7 @@ struct IqmRunRequest {
     qubit_mapping: Option<Vec<SingleQubitMapping>>,
     shots: u16,
     #[serde(default)]
-    max_circuit_duration_over_t2: Option<f64>,
+    circuit_duration_check: bool,
     heralding_mode: HeraldingMode,
 }
 
@@ -85,8 +86,10 @@ enum Status {
 #[serde(rename_all = "lowercase")]
 enum HeraldingMode {
     #[serde(rename = "none")]
+    ///
     None,
     #[serde(rename = "zeros")]
+    ///
     Zeros,
 }
 
@@ -229,20 +232,22 @@ impl Backend {
         &self,
         circuit: &Circuit,
     ) -> Result<(), RoqoqoBackendError> {
-        let allowed_measurement_ops = [
+        let allowed = [
             "PragmaSetNumberOfMeasurements",
             "PragmaRepeatedMeasurement",
             "MeasureQubit",
             "DefinitionBit",
             "InputBit",
+            "PragmaGlobalPhase",
         ];
 
         for op in circuit.iter() {
             if let Ok(inner_op) = SingleQubitOperation::try_from(op) {
-                if self
-                    .device
-                    .single_qubit_gate_time(inner_op.hqslang(), inner_op.qubit())
-                    .is_none()
+                if !allowed.contains(&inner_op.hqslang())
+                    && self
+                        .device
+                        .single_qubit_gate_time(inner_op.hqslang(), inner_op.qubit())
+                        .is_none()
                 {
                     return Err(RoqoqoBackendError::OperationNotInBackend {
                         backend: "IQM",
@@ -271,7 +276,7 @@ impl Backend {
                         hqslang: inner_op.hqslang(),
                     });
                 }
-            } else if !allowed_measurement_ops.contains(&op.hqslang()) {
+            } else if !allowed.contains(&op.hqslang()) {
                 return Err(RoqoqoBackendError::OperationNotInBackend {
                     backend: "IQM",
                     hqslang: op.hqslang(),
@@ -289,20 +294,24 @@ impl Backend {
     pub fn validate_circuit(&self, circuit: &Circuit) -> Result<(), IqmBackendError> {
         // Check that the circuit doesn't contain more qubits than the device supports
         let mut measured_qubits: Vec<usize> = vec![];
-        let number_qubits = match _get_number_qubits(circuit) {
-            Some(x) => x,
-            None => return Err(IqmBackendError::EmptyCircuit),
-        };
+        let number_qubits = _get_number_qubits(circuit).ok_or(IqmBackendError::EmptyCircuit)?;
 
-        if let IqmDevice::DenebDevice(device) = &self.device {
-            device.validate_circuit(circuit)?
-        } else {
-            self.validate_circuit_connectivity(circuit).map_err(|err| {
-                IqmBackendError::InvalidCircuit {
-                    msg: err.to_string(),
-                }
-            })?
-        }
+        // NOTE checking also the name is a workaround for a pyo3 deserialization bug that causes
+        // the if let to match even when the device is not Deneb
+        // if self.device.name() == "Deneb" {
+        // NOTE I've temporarily commented this block because the same deserialization that causes
+        // GarnetDevice to be deserialized into DenebDevice also causes the wrong
+        // gate_times functions to be called
+        //     if let IqmDevice::DenebDevice(device) = &self.device {
+        //         device.validate_circuit(circuit)?
+        //     }
+        // } else {
+        //     self.validate_circuit_connectivity(circuit).map_err(|err| {
+        //         IqmBackendError::InvalidCircuit {
+        //             msg: err.to_string(),
+        //         }
+        //     })?
+        // }
 
         // Check that
         // 1) Every qubit is measured exactly once
@@ -382,7 +391,7 @@ impl Backend {
         let job_url = self.device.remote_host() + "/" + &id;
 
         let result = client
-            .get(job_url)
+            .get(job_url.clone())
             .headers(_construct_headers(&self.access_token))
             .send()
             .map_err(|e| RoqoqoBackendError::NetworkError {
@@ -417,6 +426,7 @@ impl Backend {
 
         while start_time.elapsed().as_secs_f64() < TIMEOUT_SECS {
             let iqm_result = self.get_results(id.clone())?;
+
             match iqm_result.status {
                 Status::Ready => return Ok(iqm_result),
                 Status::Failed => {
@@ -614,7 +624,7 @@ impl Backend {
             custom_settings: None,
             calibration_set_id: None,
             qubit_mapping: None,
-            max_circuit_duration_over_t2: None,
+            circuit_duration_check: false,
             heralding_mode: HeraldingMode::None,
         };
 
@@ -943,7 +953,7 @@ mod tests {
             calibration_set_id: None,
             qubit_mapping: None,
             shots: 1,
-            max_circuit_duration_over_t2: None,
+            circuit_duration_check: false,
             heralding_mode: HeraldingMode::None,
         };
         let metadata = Metadata { request };
@@ -954,5 +964,86 @@ mod tests {
             metadata,
             warnings: None,
         }
+    }
+
+    #[test]
+    fn test_debug() {
+        use crate::devices::GarnetDevice;
+        use crate::IqmInstruction;
+        use qoqo_calculator::CalculatorFloat;
+
+        let device = GarnetDevice::new();
+        let backend = Backend::new(device.into(), None).unwrap();
+
+        println!("{:?}", backend);
+
+        //     let readout_name = "ro".to_string();
+        //     let register_length = 5;
+        //     let number_measurements = 5;
+
+        //     let xy_instruction = IqmInstruction {
+        //         name: "prx".to_string(),
+        //         qubits: vec!["QB1".to_string()],
+        //         args: HashMap::from([
+        //             ("angle_t".to_string(), CalculatorFloat::Float(0.5)),
+        //             ("phase_t".to_string(), CalculatorFloat::Float(0.5)),
+        //         ]),
+        //     };
+        //     let meas_instruction = IqmInstruction {
+        //         name: "measure".to_string(),
+        //         qubits: vec!["QB1".to_string(), "QB2".to_string()],
+        //         args: HashMap::from([(
+        //             "key".to_string(),
+        //             CalculatorFloat::Str(readout_name.clone()),
+        //         )]),
+        //     };
+        //     let instruction_vec = vec![
+        //         xy_instruction,
+        //         meas_instruction,
+        //     ];
+        //     let mut metadata = HashMap::new();
+        //     metadata.insert(readout_name, (vec![0, 1], register_length));
+
+        //     let qc1 = IqmCircuit {
+        //         name: "qc1".to_string(),
+        //         instructions: instruction_vec,
+        //         metadata: Some(metadata)
+        //     };
+        //     let circuits = vec![qc1.clone(), qc1];
+
+        //     let data = IqmRunRequest {
+        //             circuits,
+        //             shots: number_measurements as u16,
+        //             custom_settings: None,
+        //             calibration_set_id: None,
+        //             qubit_mapping: None,
+        //             circuit_duration_check: false,
+        //             heralding_mode: HeraldingMode::None,
+        //         };
+
+        //     let data_ser = serde_json::to_string(&data).unwrap();
+        //     println!("REQUEST: \n {:#?}\n", data_ser);
+
+        //     let res_metadata = Metadata { request: data };
+        //     let res = IqmRunResult {
+        //         status: Status::PendingCompilation,
+        //         measurements: None,
+        //         message: None,
+        //         metadata: res_metadata,
+        //         warnings: None,
+        //     };
+        //     let res_ser = serde_json::to_string(&res).unwrap();
+        //     println!("RES_SER: \n {:#?} \n", res_ser);
+
+        //     // let res_deser: IqmRunResult = serde_json::from_str(&res_ser)
+        //     //     .expect("Could not deserialize!?");
+        //     // println!("RES_DESER: \n {:#?}\n", res_deser);
+
+        //     // // pending
+        //     let id = "0664b4f2-74c9-7735-8000-bcb54ff450b9";
+        //     // // completed
+        //     // let id = "066290f7-8029-7c39-8000-a1e0f8622100";
+        //     let res_backend = backend.wait_for_results(id.to_string());
+        //     println!("RES FROM IQM: \n {:#?}", res_backend);
     }
 }

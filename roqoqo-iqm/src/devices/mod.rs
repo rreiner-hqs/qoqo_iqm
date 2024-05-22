@@ -46,6 +46,15 @@ impl IqmDevice {
             IqmDevice::GarnetDevice(x) => x.remote_host(),
         }
     }
+
+    /// Returns the name of the device.
+    pub fn name(&self) -> String {
+        match self {
+            IqmDevice::DenebDevice(x) => x.name(),
+            IqmDevice::ResonatorFreeDevice(_) => "".to_string(),
+            IqmDevice::GarnetDevice(x) => x.name(),
+        }
+    }
 }
 
 impl From<&DenebDevice> for IqmDevice {

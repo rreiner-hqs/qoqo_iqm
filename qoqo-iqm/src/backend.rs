@@ -375,7 +375,7 @@ impl BackendWrapper {
     ///     ConnectionError: Something went wrong when getting the results
     ///     PyRuntimeError: Something went wrong when converting the results into the qoqo registers
     ///     format
-    pub fn get_batch_raw_result(&self, id: String) -> PyResult<Registers> {
+    pub fn get_batch_raw_results(&self, id: String) -> PyResult<Registers> {
         let results = self.internal.wait_for_results(id.clone()).map_err(|err| {
             PyConnectionError::new_err(format!(
                 "Something went wrong when retrieving the results of a batch run: {}",

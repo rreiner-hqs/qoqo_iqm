@@ -24,6 +24,7 @@ use crate::IqmBackendError;
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DenebDevice {
     url: String,
+    name: String,
 }
 
 impl DenebDevice {
@@ -31,12 +32,18 @@ impl DenebDevice {
     pub fn new() -> Self {
         Self {
             url: "https://cocos.resonance.meetiqm.com/deneb/jobs".to_string(),
+            name: "Deneb".to_string(),
         }
     }
 
     /// Returns API endpoint URL of the device.
     pub fn remote_host(&self) -> String {
         self.url.clone()
+    }
+
+    /// Returns the name of the device.
+    pub fn name(&self) -> String {
+        self.name.clone()
     }
 
     /// Change API endpoint URL of the device

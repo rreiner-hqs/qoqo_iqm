@@ -310,6 +310,9 @@ fn run_circuit_repeated_measurements_deterministic() {
 }
 
 #[test]
+fn test_submit_batch() {}
+
+#[test]
 fn disconnected_qubits_deneb() {
     let device = DenebDevice::new();
     let backend = Backend::new(device.into(), Some("dummy_token".to_string())).unwrap();
