@@ -86,10 +86,13 @@ enum Status {
 #[serde(rename_all = "lowercase")]
 enum HeraldingMode {
     #[serde(rename = "none")]
-    ///
+    /// Do not do any heralding.
     None,
     #[serde(rename = "zeros")]
+    /// Perform a heralding measurement, only retain shots with an all-zeros result.
     ///
+    /// Note: in this mode, the number of shots returned after execution will be less or equal to
+    /// the requested amount due to the post-selection based on heralding data.
     Zeros,
 }
 

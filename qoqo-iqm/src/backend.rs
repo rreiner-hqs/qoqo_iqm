@@ -197,7 +197,7 @@ impl BackendWrapper {
     /// Args:
     ///     id (str): The ID of the job to abort.
     ///
-    /// Returns
+    /// Returns:
     ///     ConnectionError: A connection error when sending the request.
     pub fn abort_job(&self, id: String) -> PyResult<()> {
         self.internal
