@@ -51,18 +51,11 @@ impl GarnetDeviceWrapper {
             if let Ok(try_downcast) = input.extract::<GarnetDeviceWrapper>() {
                 Ok(try_downcast.internal)
             } else {
-                let get_bytes = input.call_method0("to_bincode").map_err(|_| {
-                PyTypeError::new_err("Python object cannot be converted to IQM GarnetDevice: Cast to binary representation failed".to_string())
-            })?;
-                let bytes = get_bytes.extract::<Vec<u8>>().map_err(|_| {
-                PyTypeError::new_err("Python object cannot be converted to IQM GarnetDevice: Cast to binary representation failed".to_string())
-            })?;
-                deserialize(&bytes[..]).map_err(|err| {
-                    PyTypeError::new_err(format!(
-                    "Python object cannot be converted to IQM GarnetDevice: Deserialization failed: {}",
-                    err
+                Err(PyTypeError::new_err(
+                    "Python object cannot be converted to IQM GarnetDevice: Cast to binary \
+                     representation failed"
+                        .to_string(),
                 ))
-                })
             }
         })
     }

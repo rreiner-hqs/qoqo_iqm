@@ -9,12 +9,3 @@ resolver = "2"
 [profile.release]
 lto = true
 strip = true
-
-[patch.crates-io]
-struqture = { git = "https://github.com/HQSquantumsimulations/struqture.git", version = "~1.6.1", package = "struqture" , tag = "v1.6.1" }
-struqture-py = { git = "https://github.com/HQSquantumsimulations/struqture.git", version = "~1.6.1" , package = "struqture-py" , tag = "v1.6.1" }
-struqture-py-macros = { git = "https://github.com/HQSquantumsimulations/struqture.git", version = "~1.6.1", package = "struqture-py-macros" , tag = "v1.6.1" }
-
-roqoqo = { git = "https://github.com/HQSquantumsimulations/qoqo.git", version = "~1.11.0", package = "roqoqo" , tag ="v1.11.0" }
-qoqo = { git = "https://github.com/HQSquantumsimulations/qoqo.git", version = "~1.11.0" , package = "qoqo" , tag ="v1.11.0" }
-qoqo-macros = { git = "https://github.com/HQSquantumsimulations/qoqo.git", version = "~1.11.0", package = "qoqo-macros" , tag ="v1.11.0" }

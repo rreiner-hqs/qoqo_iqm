@@ -92,20 +92,20 @@ impl BackendWrapper {
     #[pyo3(text_signature = "(device, access_token)")]
     #[new]
     pub fn new(device: &PyAny, access_token: Option<String>) -> PyResult<Self> {
-        let device = match DenebDeviceWrapper::from_pyany(device.into()) {
-            Ok(device) => IqmDevice::from(device),
-            Err(_) => match ResonatorFreeDeviceWrapper::from_pyany(device.into()) {
-                Ok(device) => IqmDevice::from(device),
-                Err(err) => {
-                    return Err(PyRuntimeError::new_err(format!(
-                    "Could not convert device to neither DenebDevice nor ResonatorFreeDevice: {:?}",
-                    err
-                )))
-                }
-            },
-        };
+        let iqm_device: IqmDevice;
+        if let Ok(dev) = DenebDeviceWrapper::from_pyany(device.into()) {
+            iqm_device = IqmDevice::from(dev);
+        } else if let Ok(dev) = GarnetDeviceWrapper::from_pyany(device.into()) {
+            iqm_device = IqmDevice::from(dev);
+        } else if let Ok(dev) = ResonatorFreeDeviceWrapper::from_pyany(device.into()) {
+            iqm_device = IqmDevice::from(dev);
+        } else {
+            return Err(PyRuntimeError::new_err(
+                "Could not convert input device to one of the available devices.".to_string(),
+            ));
+        }
         Ok(Self {
-            internal: Backend::new(device, access_token).map_err(|err| {
+            internal: Backend::new(iqm_device, access_token).map_err(|err| {
                 PyRuntimeError::new_err(format!("No access token found {:?}", err))
             })?,
         })

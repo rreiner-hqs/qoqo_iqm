@@ -670,7 +670,7 @@ checksum = "a948666b637a0f465e8564c73e89d4dde00d72d4d473cc972f390fc3dcee7d9c"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -681,9 +681,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-src"
-version = "300.2.3+3.2.1"
+version = "300.3.0+3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cff92b6f71555b61bb9315f7c64da3ca43d87531622120fea0195fc761b4843"
+checksum = "eba8804a1c5765b18c4b3f907e6897ebabeedebc9830e1a0046c4a4cf44663e1"
 dependencies = [
  "cc",
 ]
@@ -836,7 +836,7 @@ dependencies = [
  "proc-macro2",
  "pyo3-macros-backend",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -849,13 +849,14 @@ dependencies = [
  "proc-macro2",
  "pyo3-build-config",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
 name = "qoqo"
-version = "1.11.0"
-source = "git+https://github.com/HQSquantumsimulations/qoqo.git?tag=v1.11.0#548bda434a51e047cf50e4cb42bd2c135bad01e7"
+version = "1.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b3db2b19c07a0fa4669d0c1e0b33a95e9bdb8658a9145dd299b3d1569102947"
 dependencies = [
  "bincode",
  "ndarray",
@@ -874,7 +875,7 @@ dependencies = [
  "serde_json",
  "struqture",
  "struqture-py",
- "syn 2.0.65",
+ "syn 2.0.66",
  "thiserror",
 ]
 
@@ -897,20 +898,21 @@ dependencies = [
 
 [[package]]
 name = "qoqo-macros"
-version = "1.11.0"
-source = "git+https://github.com/HQSquantumsimulations/qoqo.git?tag=v1.11.0#548bda434a51e047cf50e4cb42bd2c135bad01e7"
+version = "1.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fbeabb7d274d4008f74e8233be4ee3348315c46109cea07761d28a17510bc6e9"
 dependencies = [
  "proc-macro2",
  "quote",
  "struqture",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
 name = "qoqo_calculator"
-version = "1.2.2"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fa8b27bb34103af09afcca6d21ccb52dfa66a34c0ffa0f8103003bb1afd9d53"
+checksum = "a09a97be02a5c03e7bd13777d3275b42e3185f34184b0c7f2ce629fc062701c8"
 dependencies = [
  "num-complex",
  "schemars",
@@ -920,9 +922,9 @@ dependencies = [
 
 [[package]]
 name = "qoqo_calculator_pyo3"
-version = "1.1.5"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e973e62b55ef8196012cba19711688d4ff11c7929792043faba13fe8fbd7b2c"
+checksum = "e52d7ade79c62669937a17548b434d2249a2842393c015a8a52efe901d59c031"
 dependencies = [
  "num-complex",
  "pyo3",
@@ -1038,8 +1040,9 @@ dependencies = [
 
 [[package]]
 name = "roqoqo"
-version = "1.11.0"
-source = "git+https://github.com/HQSquantumsimulations/qoqo.git?tag=v1.11.0#548bda434a51e047cf50e4cb42bd2c135bad01e7"
+version = "1.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d06e9109a88c0374a14ef72d1c9708fc4a9b192b17b9c586c9ef67c78a2613e"
 dependencies = [
  "bincode",
  "nalgebra",
@@ -1054,18 +1057,19 @@ dependencies = [
  "roqoqo-derive",
  "serde",
  "struqture",
- "syn 2.0.65",
+ "syn 2.0.66",
  "thiserror",
 ]
 
 [[package]]
 name = "roqoqo-derive"
-version = "1.11.0"
-source = "git+https://github.com/HQSquantumsimulations/qoqo.git?tag=v1.11.0#548bda434a51e047cf50e4cb42bd2c135bad01e7"
+version = "1.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c445ea2252e1e3b3789f5dd150be07ccd61d20df7a0534e94a04ed75f2e3b4ff"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -1143,9 +1147,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "0.8.20"
+version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0218ceea14babe24a4a5836f86ade86c1effbc198164e619194cb5069187e29"
+checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
 dependencies = [
  "dyn-clone",
  "schemars_derive",
@@ -1155,14 +1159,14 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "0.8.20"
+version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ed5a1ccce8ff962e31a165d41f6e2a2dd1245099dc4d594f5574a86cd90f4d3"
+checksum = "b1eee588578aff73f856ab961cd2f79e36bc45d7ded33a7562adba4667aecc0e"
 dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -1211,7 +1215,7 @@ checksum = "6048858004bcff69094cd972ed40a32500f153bd3be9f716b2eed2e8217c4838"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -1222,7 +1226,7 @@ checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -1288,8 +1292,9 @@ dependencies = [
 
 [[package]]
 name = "struqture"
-version = "1.6.1"
-source = "git+https://github.com/HQSquantumsimulations/struqture.git?tag=v1.6.1#be3da297b07754b096e9a8bbc21e579ff7a1ca25"
+version = "1.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ff456900c0d4d333f5090b3882e0c77cf4375f3b8c14637fac93ab279fbad75"
 dependencies = [
  "itertools",
  "ndarray",
@@ -1304,8 +1309,9 @@ dependencies = [
 
 [[package]]
 name = "struqture-py"
-version = "1.6.1"
-source = "git+https://github.com/HQSquantumsimulations/struqture.git?tag=v1.6.1#be3da297b07754b096e9a8bbc21e579ff7a1ca25"
+version = "1.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fc0517e1333224c5fbcdcb3c3fb59d3ef77b6de3a11a86c678b8b69efef426d"
 dependencies = [
  "bincode",
  "num-complex",
@@ -1321,19 +1327,20 @@ dependencies = [
  "serde_json",
  "struqture",
  "struqture-py-macros",
- "syn 2.0.65",
+ "syn 2.0.66",
  "thiserror",
 ]
 
 [[package]]
 name = "struqture-py-macros"
-version = "1.6.1"
-source = "git+https://github.com/HQSquantumsimulations/struqture.git?tag=v1.6.1#be3da297b07754b096e9a8bbc21e579ff7a1ca25"
+version = "1.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1537500910f3b3a4a766d13ab46c998ac468abbab40766a34b311c944714cb33"
 dependencies = [
  "num-complex",
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -1349,9 +1356,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.65"
+version = "2.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2863d96a84c6439701d7a38f9de935ec562c8832cc55d1dde0f513b52fad106"
+checksum = "c42f3f41a2de00b01c0aaad383c5a45241efc8b2d1eda5661812fda5f3cdcff5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1421,7 +1428,7 @@ dependencies = [
  "cfg-if",
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -1432,7 +1439,7 @@ checksum = "5c89e72a01ed4c579669add59014b9a524d609c0c88c6a585ce37485879f6ffb"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
  "test-case-core",
 ]
 
@@ -1453,7 +1460,7 @@ checksum = "46c3384250002a6d5af4d114f2845d37b57521033f30d5c3f46c4d70e1197533"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
 ]
 
 [[package]]
@@ -1627,7 +1634,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
  "wasm-bindgen-shared",
 ]
 
@@ -1661,7 +1668,7 @@ checksum = "e94f17b526d0a461a191c78ea52bbce64071ed5c04c9ffe424dcb38f74171bb7"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.65",
+ "syn 2.0.66",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
