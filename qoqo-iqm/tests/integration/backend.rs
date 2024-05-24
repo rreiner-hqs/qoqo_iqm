@@ -12,7 +12,6 @@
 
 use pyo3::prelude::*;
 use pyo3::Python;
-use qoqo::measurements::{ClassicalRegisterWrapper, PauliZProductWrapper};
 use qoqo_iqm::devices;
 use qoqo_iqm::BackendWrapper;
 use std::env;
@@ -57,7 +56,8 @@ fn test_creating_backend_deneb_device() {
                 .unwrap();
         })
     } else {
-        // If the environment variable IQM_TOKEN is not set and an access token is not provided, creation of the Backend should fail
+        // If the environment variable IQM_TOKEN is not set and an access token is not provided,
+        // creation of the Backend should fail
         Python::with_gil(|py| {
             let device_type = py.get_type::<devices::DenebDeviceWrapper>();
             let device = device_type
@@ -115,7 +115,8 @@ fn test_creating_backend_resonator_free_device() {
                 .unwrap();
         })
     } else {
-        // If the environment variable IQM_TOKEN is not set and an access token is not provided, creation of the Backend should fail
+        // If the environment variable IQM_TOKEN is not set and an access token is not provided,
+        // creation of the Backend should fail
         Python::with_gil(|py| {
             let device_type = py.get_type::<devices::ResonatorFreeDeviceWrapper>();
             let device = device_type
@@ -140,7 +141,6 @@ fn test_creating_backend_garnet_device() {
 
     // Test if Backend is created successfully with a dummy access token
     Python::with_gil(|py| {
-        // get Python type (i.e. Python class) corresponding to ResonatorFreeDeviceWrapper Rust type
         let device_type = py.get_type::<devices::GarnetDeviceWrapper>();
         let device = device_type
             // Instantiate Python class
