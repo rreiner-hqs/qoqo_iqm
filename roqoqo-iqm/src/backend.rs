@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 // Timeout for querying the REST API for results
 const TIMEOUT_SECS: f64 = 60.0;
 // Time interval between REST API queries
-const SECONDS_BETWEEN_CALLS: f64 = 1.0;
+const SECONDS_BETWEEN_CALLS: f64 = 4.0;
 
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct SingleQubitMapping {
@@ -41,6 +41,7 @@ struct SingleQubitMapping {
     physical_name: String,
 }
 
+/// Representation of the request to be sent to the server.
 #[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct IqmRunRequest {
     circuits: Vec<IqmCircuit>,
@@ -52,7 +53,7 @@ struct IqmRunRequest {
     qubit_mapping: Option<Vec<SingleQubitMapping>>,
     shots: u16,
     #[serde(default)]
-    max_circuit_duration_over_t2: Option<f64>,
+    circuit_duration_check: bool,
     heralding_mode: HeraldingMode,
 }
 
@@ -85,8 +86,13 @@ enum Status {
 #[serde(rename_all = "lowercase")]
 enum HeraldingMode {
     #[serde(rename = "none")]
+    /// Do not do any heralding.
     None,
     #[serde(rename = "zeros")]
+    /// Perform a heralding measurement, only retain shots with an all-zeros result.
+    ///
+    /// Note: in this mode, the number of shots returned after execution will be less or equal to
+    /// the requested amount due to the post-selection based on heralding data.
     Zeros,
 }
 
@@ -229,20 +235,22 @@ impl Backend {
         &self,
         circuit: &Circuit,
     ) -> Result<(), RoqoqoBackendError> {
-        let allowed_measurement_ops = [
+        let allowed = [
             "PragmaSetNumberOfMeasurements",
             "PragmaRepeatedMeasurement",
             "MeasureQubit",
             "DefinitionBit",
             "InputBit",
+            "PragmaGlobalPhase",
         ];
 
         for op in circuit.iter() {
             if let Ok(inner_op) = SingleQubitOperation::try_from(op) {
-                if self
-                    .device
-                    .single_qubit_gate_time(inner_op.hqslang(), inner_op.qubit())
-                    .is_none()
+                if !allowed.contains(&inner_op.hqslang())
+                    && self
+                        .device
+                        .single_qubit_gate_time(inner_op.hqslang(), inner_op.qubit())
+                        .is_none()
                 {
                     return Err(RoqoqoBackendError::OperationNotInBackend {
                         backend: "IQM",
@@ -271,7 +279,7 @@ impl Backend {
                         hqslang: inner_op.hqslang(),
                     });
                 }
-            } else if !allowed_measurement_ops.contains(&op.hqslang()) {
+            } else if !allowed.contains(&op.hqslang()) {
                 return Err(RoqoqoBackendError::OperationNotInBackend {
                     backend: "IQM",
                     hqslang: op.hqslang(),
@@ -289,13 +297,16 @@ impl Backend {
     pub fn validate_circuit(&self, circuit: &Circuit) -> Result<(), IqmBackendError> {
         // Check that the circuit doesn't contain more qubits than the device supports
         let mut measured_qubits: Vec<usize> = vec![];
-        let number_qubits = match _get_number_qubits(circuit) {
-            Some(x) => x,
-            None => return Err(IqmBackendError::EmptyCircuit),
-        };
+        let number_qubits = _get_number_qubits(circuit).ok_or(IqmBackendError::EmptyCircuit)?;
 
-        if let IqmDevice::DenebDevice(device) = &self.device {
-            device.validate_circuit(circuit)?
+        // NOTE checking also the name is a workaround for a pyo3 deserialization bug that causes
+        // the if let to match even when the device is not Deneb. This issue should have been fixed
+        // by removing the bincode deserialization attempt in the device pyo3 files, but I leave the
+        // name check here for extra insurance.
+        if self.device.name() == "Deneb" {
+            if let IqmDevice::DenebDevice(device) = &self.device {
+                device.validate_circuit(circuit)?
+            }
         } else {
             self.validate_circuit_connectivity(circuit).map_err(|err| {
                 IqmBackendError::InvalidCircuit {
@@ -305,14 +316,16 @@ impl Backend {
         }
 
         // Check that
-        // 1) Every qubit is only measured once
+        // 1) Every qubit is measured exactly once
         // 2) Output registers are large enough
+        let mut measured = false;
         for op in circuit.iter() {
             match op {
                 Operation::MeasureQubit(o) => {
+                    measured = true;
                     let qubit = *o.qubit();
                     if measured_qubits.contains(&qubit) {
-                        return Err(IqmBackendError::QubitMeasuredMultipleTimes {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: format!("Qubit {} is being measured multiple times.", qubit),
                         });
                     } else {
@@ -320,8 +333,9 @@ impl Backend {
                     }
                 }
                 Operation::PragmaRepeatedMeasurement(o) => {
+                    measured = true;
                     if !measured_qubits.is_empty() {
-                        return Err(IqmBackendError::QubitMeasuredMultipleTimes {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: "Qubits are being measured more than once. When using \
                                 PragmaRepeatedMeasurement, there should not be individual qubit \
                                 measurements, and the PragmaRepeatedMeasurement operation can \
@@ -348,7 +362,14 @@ impl Backend {
                 _ => (),
             }
         }
-        Ok(())
+        if !measured {
+            Err(IqmBackendError::InvalidCircuit {
+                msg: "All circuits submitted need to have at least one measurement instruction."
+                    .to_string(),
+            })
+        } else {
+            Ok(())
+        }
     }
 
     /// Query results of a submitted job.
@@ -372,7 +393,7 @@ impl Backend {
         let job_url = self.device.remote_host() + "/" + &id;
 
         let result = client
-            .get(job_url)
+            .get(job_url.clone())
             .headers(_construct_headers(&self.access_token))
             .send()
             .map_err(|e| RoqoqoBackendError::NetworkError {
@@ -407,6 +428,7 @@ impl Backend {
 
         while start_time.elapsed().as_secs_f64() < TIMEOUT_SECS {
             let iqm_result = self.get_results(id.clone())?;
+
             match iqm_result.status {
                 Status::Ready => return Ok(iqm_result),
                 Status::Failed => {
@@ -445,7 +467,7 @@ impl Backend {
             .build()
             .map_err(|err| {
                 IqmBackendError::RoqoqoBackendError(RoqoqoBackendError::NetworkError {
-                    msg: format!("could not create https client {:?}", err),
+                    msg: format!("Could not create HTTPS client {:?}", err),
                 })
             })?;
 
@@ -524,7 +546,7 @@ impl Backend {
     /// # Returns
     ///
     /// * `Err(IqmBackendError)` - The batch is invalid.
-    fn validate_circuit_batch(&self, circuit_batch: &[Circuit]) -> Result<(), IqmBackendError> {
+    pub fn validate_circuit_batch(&self, circuit_batch: &[Circuit]) -> Result<(), IqmBackendError> {
         let mut output_registers = HashSet::new();
         for circuit in circuit_batch.iter() {
             self.validate_circuit(circuit)?;
@@ -546,8 +568,8 @@ impl Backend {
         }
         if output_registers.len() < circuit_batch.len() {
             return Err(IqmBackendError::InvalidCircuit {
-                msg: "When submitting a batch of circuits, they need to write to
-                      different output registers."
+                msg: "When submitting a batch of circuits, they need to write to different output \
+                      registers."
                     .to_string(),
             });
         }
@@ -566,14 +588,14 @@ impl Backend {
     /// * `Err(RoqoqoBackendError::NetworkError)` - Something went wrong when submitting the job.
     pub fn submit_circuit_batch(
         &self,
-        circuit_batch: Vec<Circuit>,
+        circuit_batch: &[Circuit],
     ) -> Result<String, IqmBackendError> {
-        self.validate_circuit_batch(&circuit_batch)?;
+        self.validate_circuit_batch(circuit_batch)?;
 
         let mut circuits = vec![];
         let mut number_measurements_set = HashSet::new();
 
-        for (circuit_index, circuit) in circuit_batch.into_iter().enumerate() {
+        for (circuit_index, circuit) in circuit_batch.iter().enumerate() {
             let (iqm_circuit, number_measurements) = call_circuit(
                 circuit.iter(),
                 self.device.number_qubits(),
@@ -604,7 +626,7 @@ impl Backend {
             custom_settings: None,
             calibration_set_id: None,
             qubit_mapping: None,
-            max_circuit_duration_over_t2: None,
+            circuit_duration_check: false,
             heralding_mode: HeraldingMode::None,
         };
 
@@ -654,7 +676,7 @@ impl Backend {
     /// `Err(RoqoqoBackendError)` - Transparent propagation of errors.
     pub fn run_circuit_batch(
         &self,
-        circuit_batch: Vec<Circuit>,
+        circuit_batch: &[Circuit],
     ) -> Result<Registers, IqmBackendError> {
         let id = self.submit_circuit_batch(circuit_batch)?;
         let results = self.wait_for_results(id.clone())?;
@@ -676,7 +698,7 @@ impl EvaluatingBackend for Backend {
         circuit: impl Iterator<Item = &'a Operation>,
     ) -> RegisterResult {
         let circuit: Circuit = circuit.into_iter().cloned().collect();
-        self.run_circuit_batch(vec![circuit])
+        self.run_circuit_batch(&[circuit])
             .map_err(|err| RoqoqoBackendError::GenericError {
                 msg: err.to_string(),
             })
@@ -933,7 +955,7 @@ mod tests {
             calibration_set_id: None,
             qubit_mapping: None,
             shots: 1,
-            max_circuit_duration_over_t2: None,
+            circuit_duration_check: false,
             heralding_mode: HeraldingMode::None,
         };
         let metadata = Metadata { request };

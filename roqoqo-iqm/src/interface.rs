@@ -148,11 +148,11 @@ pub fn call_circuit<'a>(
                 }
             }
             Operation::PragmaSetNumberOfMeasurements(o) => {
-                // if number_measurements > 1, it means that it has already been set by either a
-                // PragmaSetNumberOfMeasurements or a PragmaRepeatedMeasurement
-                if number_measurements > 1 {
+                if number_measurements > 1 && number_measurements != *o.number_measurements() {
                     return Err(IqmBackendError::InvalidCircuit {
-                        msg: "Only one repeated measurement is allowed in the circuit.".to_string(),
+                        msg: "All PragmaSetNumberOfMeasurements in the circuit must have the same /
+                              number of measurements."
+                            .to_string(),
                     });
                 }
                 number_measurements = *o.number_measurements();
@@ -209,8 +209,6 @@ pub fn call_circuit<'a>(
                 }
             }
             Operation::PragmaRepeatedMeasurement(o) => {
-                // if number_measurements > 1, it means that it has already been set by either a
-                // PragmaSetNumberOfMeasurements or a PragmaRepeatedMeasurement
                 if number_measurements > 1 {
                     return Err(IqmBackendError::InvalidCircuit {
                         msg: "Only one repeated measurement is allowed in the circuit.".to_string(),
@@ -230,7 +228,7 @@ pub fn call_circuit<'a>(
                         None => {
                             return Err(IqmBackendError::InvalidCircuit {
                                 msg: "A PragmaRepeatedMeasurement operation is writing to an \
-                                           undefined register."
+                                      undefined register."
                                     .to_string(),
                             })
                         }

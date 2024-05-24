@@ -20,6 +20,7 @@ use std::cmp::{max, min};
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GarnetDevice {
     url: String,
+    name: String,
 }
 
 impl GarnetDevice {
@@ -27,12 +28,18 @@ impl GarnetDevice {
     pub fn new() -> Self {
         Self {
             url: "https://cocos.resonance.meetiqm.com/garnet/jobs".to_string(),
+            name: "Garnet".to_string(),
         }
     }
 
     /// Returns API endpoint URL of the device.
     pub fn remote_host(&self) -> String {
         self.url.clone()
+    }
+
+    /// Returns the name of the device.
+    pub fn name(&self) -> String {
+        self.name.clone()
     }
 
     /// Change API endpoint URL of the device
