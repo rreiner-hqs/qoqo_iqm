@@ -264,7 +264,7 @@ impl Backend {
         let access_token_internal: String = match access_token {
             Some(s) => s,
             None => _get_token_from_env_var().map_err(|_| {
-                RoqoqoBackendError::MissingAuthentification {
+                RoqoqoBackendError::MissingAuthentication {
                     msg: "IQM access token has not been passed as an argument and could \
                          not be retrieved from the IQM_TOKEN environment variable."
                         .to_string(),
