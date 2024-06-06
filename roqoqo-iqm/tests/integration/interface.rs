@@ -360,9 +360,6 @@ fn test_qubit_measured_twice_error() {
     assert!(matches!(err, Err(IqmBackendError::InvalidCircuit { .. })))
 }
 
-// TODO update these tests depending on the decision about PragmaRepeatedMeasurement from the upcoming
-// PM. If the pragma will still be supported, expand these tests with specific checking of the
-// metadata and measured qubits map
 #[test]
 fn test_call_circuit_repeated_measurements_with_mapping() {
     let mut circuit = Circuit::new();
