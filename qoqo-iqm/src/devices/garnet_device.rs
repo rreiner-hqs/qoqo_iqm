@@ -16,43 +16,43 @@ use pyo3::types::PyByteArray;
 
 use bincode::{deserialize, serialize};
 use roqoqo::devices::Device;
-use roqoqo_iqm::devices::ResonatorFreeDevice;
+use roqoqo_iqm::devices::GarnetDevice;
 
-/// Six-qubit device similar to the Deneb device, but without the central resonator and with CZ
-/// gates available between each pair of qubits. Used to transpile algorithms for use on the Deneb
-/// device.
-#[pyclass(name = "ResonatorFreeDevice", module = "qoqo_iqm")]
+/// IQM Garnet device
+///
+/// A hardware device composed of six qubits each coupled to a central resonator.
+#[pyclass(name = "GarnetDevice", module = "qoqo_iqm")]
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct ResonatorFreeDeviceWrapper {
-    /// Internal storage of [roqoqo_iqm::ResonatorFreeDevice]
-    pub internal: ResonatorFreeDevice,
+pub struct GarnetDeviceWrapper {
+    /// Internal storage of [roqoqo_iqm::GarnetDevice]
+    pub internal: GarnetDevice,
 }
 
-impl ResonatorFreeDeviceWrapper {
-    /// Extracts a `ResonatorFreeDevice` from a `ResonatorFreeDeviceWrapper` python object.
+impl GarnetDeviceWrapper {
+    /// Extracts a GarnetDevice from a GarnetDeviceWrapper python object.
     ///
-    /// When working with qoqo and other rust based python packages compiled separately a downcast
-    /// will not detect that two ResonatorFreeDeviceWrapper objects are compatible. This function tries to
-    /// convert a Python object into a ResonatorFreeDevice instance by first checking if the object is a
-    /// ResonatorFreeDeviceWrapper instance and, if not, by invoking the to_bincode method on the object and
+    /// When working with qoqo and other rust-based python packages compiled separately, a downcast
+    /// will not detect that two GarnetDeviceWrapper objects are compatible. This function tries to
+    /// convert a Python object into a GarnetDevice instance by first checking if the object is a
+    /// GarnetDeviceWrapper instance and, if not, by invoking the to_bincode method on the object and
     /// deserializing the returned binary data.
     ///
     /// Args:
-    ///     input (ResonatorFreeDevice): The Python object that should be casted to a [roqoqo_iqm::ResonatorFreeDevice]
+    ///     input (GarnetDevice): The Python object that should be cast to a [roqoqo_iqm::GarnetDevice]
     ///
     /// Returns:
-    ///     ResonatorFreeDevice: The resulting ResonatorFreeDevice
+    ///     device (GarnetDevice): The resulting GarnetDevice
     ///
     /// Raises:
     ///     PyTypeError: Something went wrong during the downcasting.
-    pub fn from_pyany(input: Py<PyAny>) -> PyResult<ResonatorFreeDevice> {
-        Python::with_gil(|py| -> PyResult<ResonatorFreeDevice> {
+    pub fn from_pyany(input: Py<PyAny>) -> PyResult<GarnetDevice> {
+        Python::with_gil(|py| -> PyResult<GarnetDevice> {
             let input = input.as_ref(py);
-            if let Ok(try_downcast) = input.extract::<ResonatorFreeDeviceWrapper>() {
+            if let Ok(try_downcast) = input.extract::<GarnetDeviceWrapper>() {
                 Ok(try_downcast.internal)
             } else {
                 Err(PyTypeError::new_err(
-                    "Python object cannot be converted to IQM ResonatorFreeDevice: Cast to binary \
+                    "Python object cannot be converted to IQM GarnetDevice: Cast to binary \
                      representation failed"
                         .to_string(),
                 ))
@@ -62,78 +62,93 @@ impl ResonatorFreeDeviceWrapper {
 }
 
 #[pymethods]
-impl ResonatorFreeDeviceWrapper {
+impl GarnetDeviceWrapper {
     /// Create new simulator device.
     #[new]
     pub fn new() -> Self {
         Self {
-            internal: ResonatorFreeDevice::new(),
+            internal: GarnetDevice::new(),
         }
     }
 
-    /// Return a copy of the ResonatorFreeDevice (copy here produces a deepcopy).
+    /// Change API endpoint URL of the device
+    ///
+    /// Args:
+    ///     new_url (str): The new URL to set.
+    pub fn set_endpoint_url(&mut self, new_url: String) {
+        self.internal.set_endpoint_url(new_url)
+    }
+
+    /// Return a copy of the GarnetDevice (copy here produces a deepcopy).
     ///
     /// Returns:
-    ///     ResonatorFreeDevice: A deep copy of self.
-    pub fn __copy__(&self) -> ResonatorFreeDeviceWrapper {
+    ///     GarnetDevice: A deep copy of self.
+    pub fn __copy__(&self) -> GarnetDeviceWrapper {
         self.clone()
     }
 
-    /// Return a deep copy of the ResonatorFreeDevice.
+    /// Return a deep copy of the GarnetDevice.
     ///
     /// Returns:
-    ///     ResonatorFreeDevice: A deep copy of self.
-    pub fn __deepcopy__(&self, _memodict: Py<PyAny>) -> ResonatorFreeDeviceWrapper {
+    ///     GarnetDevice: A deep copy of self.
+    pub fn __deepcopy__(&self, _memodict: Py<PyAny>) -> GarnetDeviceWrapper {
         self.clone()
     }
 
-    /// Return the bincode representation of the ResonatorFreeDevice using the [bincode] crate.
+    /// Return the bincode representation of the GarnetDevice using the [bincode] crate.
     ///
     /// Returns:
-    ///     ByteArray: The serialized ResonatorFreeDevice (in [bincode] form).
+    ///     ByteArray: The serialized GarnetDevice (in [bincode] form).
     ///
     /// Raises:
-    ///     ValueError: Cannot serialize ResonatorFreeDevice to bytes.
+    ///     ValueError: Cannot serialize GarnetDevice to bytes.
     pub fn to_bincode(&self) -> PyResult<Py<PyByteArray>> {
         let serialized = serialize(&self.internal)
-            .map_err(|_| PyValueError::new_err("Cannot serialize ResonatorFreeDevice to bytes"))?;
+            .map_err(|_| PyValueError::new_err("Cannot serialize GarnetDevice to bytes"))?;
         let b: Py<PyByteArray> = Python::with_gil(|py| -> Py<PyByteArray> {
             PyByteArray::new(py, &serialized[..]).into()
         });
         Ok(b)
     }
 
-    /// Convert the bincode representation of the ResonatorFreeDevice to a ResonatorFreeDevice using
-    /// the [bincode] crate.
+    /// Convert the bincode representation of the GarnetDevice to a GarnetDevice using the [bincode] crate.
     ///
     /// Args:
-    ///     input (ByteArray): The serialized ResonatorFreeDevice (in [bincode] form).
+    ///     input (ByteArray): The serialized GarnetDevice (in [bincode] form).
     ///
     /// Returns:
-    ///     ResonatorFreeDevice: The deserialized ResonatorFreeDevice.
+    ///     GarnetDevice: The deserialized GarnetDevice.
     ///
     /// Raises:
     ///     TypeError: Input cannot be converted to byte array.
-    ///     ValueError: Input cannot be deserialized to ResonatorFreeDevice.
+    ///     ValueError: Input cannot be deserialized to GarnetDevice.
     #[staticmethod]
-    pub fn from_bincode(input: &PyAny) -> PyResult<ResonatorFreeDeviceWrapper> {
+    pub fn from_bincode(input: &PyAny) -> PyResult<GarnetDeviceWrapper> {
         let bytes = input
             .extract::<Vec<u8>>()
             .map_err(|_| PyTypeError::new_err("Input cannot be converted to byte array"))?;
 
-        Ok(ResonatorFreeDeviceWrapper {
+        Ok(GarnetDeviceWrapper {
             internal: deserialize(&bytes[..]).map_err(|_| {
-                PyValueError::new_err("Input cannot be deserialized to ResonatorFreeDevice")
+                PyValueError::new_err("Input cannot be deserialized to GarnetDevice")
             })?,
         })
     }
 
-    /// Return number of qubits simulated by ResonatorFreeDevice.
+    /// Return number of qubits simulated by GarnetDevice.
     ///
     /// Returns:
     ///     int: The number of qubits.
     pub fn number_qubits(&self) -> usize {
         self.internal.number_qubits()
+    }
+
+    /// Return the URL of the API endpoint for the device.
+    ///
+    /// Returns:
+    ///     str: The URL of the remote host executing the Circuits.
+    pub fn remote_host(&self) -> String {
+        self.internal.remote_host()
     }
 
     /// Return the list of pairs of qubits linked by a native two-qubit-gate in the device.
@@ -144,10 +159,10 @@ impl ResonatorFreeDeviceWrapper {
     /// The two-qubit-gate also has to form a universal set together with the available
     /// single qubit gates.
     ///
-    /// The returned vectors is a simple, graph-library independent, representation of the
-    /// undirected connectivity graph of the device. It can be used to construct the connectivity
-    /// graph in a graph library of the user's choice from a list of edges and can be used for
-    /// applications like routing in quantum algorithms.
+    /// The returned vector is a simple, graph-library independent, representation of
+    /// the undirected connectivity graph of the device.
+    /// It can be used to construct the connectivity graph in a graph library of the user's
+    /// choice from a list of edges and can be used for applications like routing in quantum algorithms.
     ///
     /// Returns:
     ///     list[tuple[int, int]]: The list of two qubit edges.
@@ -155,7 +170,7 @@ impl ResonatorFreeDeviceWrapper {
         self.internal.two_qubit_edges()
     }
 
-    /// Returns the gate time of a single qubit operation on this device.
+    /// Return the gate time of a single-qubit operation on this device.
     ///
     /// Args:
     ///     hqslang (str): The name of the operation in hqslang format.
@@ -172,7 +187,7 @@ impl ResonatorFreeDeviceWrapper {
             .ok_or_else(|| PyValueError::new_err("The gate is not available on the device."))
     }
 
-    /// Returns the gate time of a two qubit operation on this device.
+    /// Return the gate time of a two-qubit operation on this device.
     ///
     /// Args:
     ///     hqslang (str): The name of the operation in hqslang format.
@@ -195,7 +210,7 @@ impl ResonatorFreeDeviceWrapper {
             .ok_or_else(|| PyValueError::new_err("The gate is not available on the device."))
     }
 
-    /// Returns the gate time of a multi qubit operation on this device.
+    /// Return the gate time of a multi-qubit operation on this device.
     ///
     /// Args:
     ///     hqslang (str): The name of the operation in hqslang format.
