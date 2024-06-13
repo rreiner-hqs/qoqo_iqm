@@ -23,6 +23,9 @@ pub use deneb_device::DenebDevice;
 mod resonator_free_device;
 pub use resonator_free_device::ResonatorFreeDevice;
 
+mod garnet_device;
+pub use garnet_device::GarnetDevice;
+
 /// Collection of IQM quantum devices
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum IqmDevice {
@@ -30,6 +33,8 @@ pub enum IqmDevice {
     DenebDevice(DenebDevice),
     /// Device like Deneb but without the central resonator
     ResonatorFreeDevice(ResonatorFreeDevice),
+    /// IQM Garnet device
+    GarnetDevice(GarnetDevice),
 }
 
 impl IqmDevice {
@@ -38,6 +43,16 @@ impl IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.remote_host(),
             IqmDevice::ResonatorFreeDevice(_) => "".to_string(),
+            IqmDevice::GarnetDevice(x) => x.remote_host(),
+        }
+    }
+
+    /// Returns the name of the device.
+    pub fn name(&self) -> String {
+        match self {
+            IqmDevice::DenebDevice(x) => x.name(),
+            IqmDevice::ResonatorFreeDevice(_) => "".to_string(),
+            IqmDevice::GarnetDevice(x) => x.name(),
         }
     }
 }
@@ -50,6 +65,17 @@ impl From<&DenebDevice> for IqmDevice {
 impl From<DenebDevice> for IqmDevice {
     fn from(input: DenebDevice) -> Self {
         Self::DenebDevice(input)
+    }
+}
+
+impl From<&GarnetDevice> for IqmDevice {
+    fn from(input: &GarnetDevice) -> Self {
+        Self::GarnetDevice(input.clone())
+    }
+}
+impl From<GarnetDevice> for IqmDevice {
+    fn from(input: GarnetDevice) -> Self {
+        Self::GarnetDevice(input)
     }
 }
 
@@ -83,6 +109,7 @@ impl Device for IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
             IqmDevice::ResonatorFreeDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
+            IqmDevice::GarnetDevice(x) => x.single_qubit_gate_time(hqslang, qubit),
         }
     }
 
@@ -102,6 +129,7 @@ impl Device for IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
             IqmDevice::ResonatorFreeDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
+            IqmDevice::GarnetDevice(x) => x.two_qubit_gate_time(hqslang, control, target),
         }
     }
 
@@ -131,6 +159,9 @@ impl Device for IqmDevice {
             IqmDevice::ResonatorFreeDevice(x) => {
                 x.three_qubit_gate_time(hqslang, control_0, control_1, target)
             }
+            IqmDevice::GarnetDevice(x) => {
+                x.three_qubit_gate_time(hqslang, control_0, control_1, target)
+            }
         }
     }
 
@@ -149,6 +180,7 @@ impl Device for IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
             IqmDevice::ResonatorFreeDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
+            IqmDevice::GarnetDevice(x) => x.multi_qubit_gate_time(hqslang, qubits),
         }
     }
 
@@ -173,6 +205,7 @@ impl Device for IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.qubit_decoherence_rates(qubit),
             IqmDevice::ResonatorFreeDevice(x) => x.qubit_decoherence_rates(qubit),
+            IqmDevice::GarnetDevice(x) => x.qubit_decoherence_rates(qubit),
         }
     }
 
@@ -185,6 +218,7 @@ impl Device for IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.number_qubits(),
             IqmDevice::ResonatorFreeDevice(x) => x.number_qubits(),
+            IqmDevice::GarnetDevice(x) => x.number_qubits(),
         }
     }
 
@@ -208,6 +242,7 @@ impl Device for IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.two_qubit_edges(),
             IqmDevice::ResonatorFreeDevice(x) => x.two_qubit_edges(),
+            IqmDevice::GarnetDevice(x) => x.two_qubit_edges(),
         }
     }
 
@@ -228,6 +263,7 @@ impl Device for IqmDevice {
         match self {
             IqmDevice::DenebDevice(x) => x.to_generic_device(),
             IqmDevice::ResonatorFreeDevice(x) => x.to_generic_device(),
+            IqmDevice::GarnetDevice(x) => x.to_generic_device(),
         }
     }
 }

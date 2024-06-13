@@ -19,6 +19,9 @@ pub use deneb_device::*;
 mod resonator_free_device;
 pub use resonator_free_device::*;
 
+mod garnet_device;
+pub use garnet_device::*;
+
 use pyo3::prelude::*;
 
 /// IQM Devices
@@ -26,5 +29,6 @@ use pyo3::prelude::*;
 pub fn iqm_devices(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<DenebDeviceWrapper>()?;
     m.add_class::<ResonatorFreeDeviceWrapper>()?;
+    m.add_class::<GarnetDeviceWrapper>()?;
     Ok(())
 }

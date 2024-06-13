@@ -25,7 +25,7 @@ use pyo3::wrap_pymodule;
 
 /// Qoqo-IQM devices
 pub mod devices;
-pub use devices::DenebDeviceWrapper;
+pub use devices::*;
 
 mod backend;
 pub use backend::BackendWrapper;
@@ -37,6 +37,7 @@ pub use backend::BackendWrapper;
 fn qoqo_iqm(_py: Python, module: &Bound<PyModule>) -> PyResult<()> {
     module.add_class::<BackendWrapper>()?;
     module.add_class::<DenebDeviceWrapper>()?;
+    module.add_class::<GarnetDeviceWrapper>()?;
 
     let wrapper = wrap_pymodule!(devices::iqm_devices);
     module.add_wrapped(wrapper)?;

@@ -16,12 +16,15 @@ use roqoqo::operations::{Operation, SingleQubitOperation};
 use roqoqo::prelude::*;
 use roqoqo::{Circuit, RoqoqoBackendError};
 
+use crate::IqmBackendError;
+
 /// IQM Deneb device
 ///
 /// A hardware device composed of six qubits each coupled to a central resonator.
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DenebDevice {
     url: String,
+    name: String,
 }
 
 impl DenebDevice {
@@ -29,12 +32,18 @@ impl DenebDevice {
     pub fn new() -> Self {
         Self {
             url: "https://cocos.resonance.meetiqm.com/deneb/jobs".to_string(),
+            name: "Deneb".to_string(),
         }
     }
 
     /// Returns API endpoint URL of the device.
     pub fn remote_host(&self) -> String {
         self.url.clone()
+    }
+
+    /// Returns the name of the device.
+    pub fn name(&self) -> String {
+        self.name.clone()
     }
 
     /// Change API endpoint URL of the device
@@ -60,7 +69,7 @@ impl DenebDevice {
     /// # Returns
     ///
     /// * `Err(RoqoqoBackendError)` - The circuit is invalid.
-    pub fn validate_circuit(&self, circuit: &Circuit) -> Result<(), RoqoqoBackendError> {
+    pub fn validate_circuit(&self, circuit: &Circuit) -> Result<(), IqmBackendError> {
         self.validate_circuit_connectivity(circuit)?;
         self.validate_circuit_load_store(circuit)?;
         Ok(())
@@ -81,7 +90,7 @@ impl DenebDevice {
     /// # Returns
     ///
     /// * `Err(RoqoqoBackendError)` - The circuit is invalid.
-    fn validate_circuit_load_store(&self, circuit: &Circuit) -> Result<(), RoqoqoBackendError> {
+    fn validate_circuit_load_store(&self, circuit: &Circuit) -> Result<(), IqmBackendError> {
         enum State {
             FoundLoad,
             FoundStore,
@@ -101,7 +110,7 @@ impl DenebDevice {
                                 let loaded_qubit = o.qubit();
                                 if let Some(stored) = stored_qubit {
                                     if *loaded_qubit == stored {
-                                        return Err(RoqoqoBackendError::GenericError {
+                                        return Err(IqmBackendError::InvalidCircuit {
                                             msg: format!(
                                                 "Circuit tries to rotate qubit {} before loading an \
                                                  excitation into it from the resonator.",
@@ -112,7 +121,7 @@ impl DenebDevice {
                             }
                         }
                         State::FoundLoad => {
-                            return Err(RoqoqoBackendError::GenericError {
+                            return Err(IqmBackendError::InvalidCircuit {
                                 msg: "Circuit tries to load twice in a row from the resonator"
                                     .to_string(),
                             })
@@ -123,7 +132,7 @@ impl DenebDevice {
                 }
                 Operation::SingleExcitationStore(o) => {
                     if let State::FoundStore = state {
-                        return Err(RoqoqoBackendError::GenericError {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: "Circuit tries to store two excitations in the resonator."
                                 .to_string(),
                         });
@@ -155,7 +164,7 @@ impl DenebDevice {
     /// # Returns
     ///
     /// * `Err(RoqoqoBackendError)` - The circuit is invalid.
-    fn validate_circuit_connectivity(&self, circuit: &Circuit) -> Result<(), RoqoqoBackendError> {
+    fn validate_circuit_connectivity(&self, circuit: &Circuit) -> Result<(), IqmBackendError> {
         let allowed_measurement_ops = [
             "PragmaSetNumberOfMeasurements",
             "PragmaRepeatedMeasurement",
@@ -168,8 +177,8 @@ impl DenebDevice {
             match op {
                 Operation::RotateXY(o) => {
                     let qubit = *o.qubit();
-                    if qubit > self.number_qubits() {
-                        return Err(RoqoqoBackendError::GenericError {
+                    if qubit >= self.number_qubits() {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: format!(
                                 "Too many qubits involved in the circuit: 
                                     Found {} acting on qubit: {} 
@@ -184,8 +193,8 @@ impl DenebDevice {
                 Operation::CZQubitResonator(o) => {
                     let qubit = *o.qubit();
                     let resonator = *o.mode();
-                    if qubit > self.number_qubits() {
-                        return Err(RoqoqoBackendError::GenericError {
+                    if qubit >= self.number_qubits() {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: format!(
                                 "Too many qubits involved in the circuit: 
                                     Found {} acting on qubit: {} 
@@ -197,7 +206,7 @@ impl DenebDevice {
                         });
                     }
                     if resonator != 0 {
-                        return Err(RoqoqoBackendError::GenericError {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: format!(
                                 "Wrong resonator index in operation {}. DenebDevice has a single \
                                 resonator with index 0.",
@@ -209,7 +218,7 @@ impl DenebDevice {
                 Operation::SingleExcitationLoad(o) => {
                     let resonator = *o.mode();
                     if resonator != 0 {
-                        return Err(RoqoqoBackendError::GenericError {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: format!(
                                 "Wrong resonator index in operation {}. DenebDevice has a single \
                                 resonator with index 0.",
@@ -221,7 +230,7 @@ impl DenebDevice {
                 Operation::SingleExcitationStore(o) => {
                     let resonator = *o.mode();
                     if resonator != 0 {
-                        return Err(RoqoqoBackendError::GenericError {
+                        return Err(IqmBackendError::InvalidCircuit {
                             msg: format!(
                                 "Wrong resonator index in operation {}. DenebDevice has a single \
                                 resonator with index 0.",
@@ -232,10 +241,12 @@ impl DenebDevice {
                 }
                 _ => {
                     if !allowed_measurement_ops.contains(&op.hqslang()) {
-                        return Err(RoqoqoBackendError::OperationNotInBackend {
-                            backend: "IQM",
-                            hqslang: op.hqslang(),
-                        });
+                        return Err(IqmBackendError::RoqoqoBackendError(
+                            RoqoqoBackendError::OperationNotInBackend {
+                                backend: "IQM",
+                                hqslang: op.hqslang(),
+                            },
+                        ));
                     }
                 }
             }
