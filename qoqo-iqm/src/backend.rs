@@ -346,20 +346,17 @@ impl BackendWrapper {
     ///
     /// Raises:
     ///     RuntimeError: Something went wrong when submitting the job to the backend.
-    pub fn submit_circuit_batch(&self, circuits: Vec<PyObject>) -> PyResult<String> {
+    pub fn submit_circuit_batch(&self, circuits: Vec<Bound<PyAny>>) -> PyResult<String> {
         let mut circuit_batch: Vec<Circuit> = Vec::new();
-        Python::with_gil(|py| -> PyResult<()> {
-            for circuit in circuits.into_iter() {
-                let tmp_circuit = CircuitWrapper::from_pyany(circuit.bind(py)).map_err(|err| {
-                    PyTypeError::new_err(format!(
-                        "`circuits` argument is not a list of qoqo Circuits: {}",
-                        err
-                    ))
-                })?;
-                circuit_batch.push(tmp_circuit)
-            }
-            Ok(())
-        })?;
+        for circuit in circuits.into_iter() {
+            let tmp_circuit = CircuitWrapper::from_pyany(&circuit).map_err(|err| {
+                PyTypeError::new_err(format!(
+                    "`circuits` argument is not a list of qoqo Circuits: {}",
+                    err
+                ))
+            })?;
+            circuit_batch.push(tmp_circuit)
+        }
         self.internal
             .submit_circuit_batch(&circuit_batch)
             .map_err(|err| {
