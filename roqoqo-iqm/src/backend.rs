@@ -941,7 +941,7 @@ mod tests {
         metadata: &[HashMap<String, (Vec<usize>, usize)>],
     ) -> IqmRunResult {
         let circuits: Vec<IqmCircuit> = metadata
-            .into_iter()
+            .iter()
             .enumerate()
             .map(|(index, map)| IqmCircuit {
                 name: format!("{}", index),
