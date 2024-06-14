@@ -4,6 +4,11 @@ This changelog tracks changes to the qoqo_iqm project starting at version 0.1.0.
 
 ## Not released
 
+## 0.10.0
+
+* Updated to pyo3 0.21.
+* Updated to qoqo 1.12 and qoqo_calculator 1.2.
+
 ## 0.9.0
 
 * Add possibility of asynchronous execution of jobs

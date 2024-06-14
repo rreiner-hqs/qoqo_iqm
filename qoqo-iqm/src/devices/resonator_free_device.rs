@@ -47,7 +47,7 @@ impl ResonatorFreeDeviceWrapper {
     ///     PyTypeError: Something went wrong during the downcasting.
     pub fn from_pyany(input: Py<PyAny>) -> PyResult<ResonatorFreeDevice> {
         Python::with_gil(|py| -> PyResult<ResonatorFreeDevice> {
-            let input = input.as_ref(py);
+            let input = input.bind(py);
             if let Ok(try_downcast) = input.extract::<ResonatorFreeDeviceWrapper>() {
                 Ok(try_downcast.internal)
             } else {
@@ -98,7 +98,7 @@ impl ResonatorFreeDeviceWrapper {
         let serialized = serialize(&self.internal)
             .map_err(|_| PyValueError::new_err("Cannot serialize ResonatorFreeDevice to bytes"))?;
         let b: Py<PyByteArray> = Python::with_gil(|py| -> Py<PyByteArray> {
-            PyByteArray::new(py, &serialized[..]).into()
+            PyByteArray::new_bound(py, &serialized[..]).into()
         });
         Ok(b)
     }
@@ -116,7 +116,7 @@ impl ResonatorFreeDeviceWrapper {
     ///     TypeError: Input cannot be converted to byte array.
     ///     ValueError: Input cannot be deserialized to ResonatorFreeDevice.
     #[staticmethod]
-    pub fn from_bincode(input: &PyAny) -> PyResult<ResonatorFreeDeviceWrapper> {
+    pub fn from_bincode(input: &Bound<PyAny>) -> PyResult<ResonatorFreeDeviceWrapper> {
         let bytes = input
             .extract::<Vec<u8>>()
             .map_err(|_| PyTypeError::new_err("Input cannot be converted to byte array"))?;

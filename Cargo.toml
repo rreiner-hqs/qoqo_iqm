@@ -1,8 +1,5 @@
 [workspace]
-members = [
-        "roqoqo-iqm",
-        "qoqo-iqm",
-]
+members = ["roqoqo-iqm", "qoqo-iqm"]
 
 resolver = "2"
 

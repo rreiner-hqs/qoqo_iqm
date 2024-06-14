@@ -48,7 +48,7 @@ impl BackendWrapper {
     ///     input (Backend): The Python object that should be casted to a [roqoqo_iqm::Backend]
     pub fn from_pyany(input: PyObject) -> PyResult<Backend> {
         Python::with_gil(|py| -> PyResult<Backend> {
-            let input = input.as_ref(py);
+            let input = input.bind(py);
             if let Ok(try_downcast) = input.extract::<BackendWrapper>() {
                 Ok(try_downcast.internal)
             } else {
@@ -91,13 +91,14 @@ impl BackendWrapper {
     ///     RuntimeError: No access token found
     #[pyo3(text_signature = "(device, access_token)")]
     #[new]
-    pub fn new(device: &PyAny, access_token: Option<String>) -> PyResult<Self> {
+    pub fn new(device: &Bound<PyAny>, access_token: Option<String>) -> PyResult<Self> {
         let iqm_device: IqmDevice;
-        if let Ok(dev) = DenebDeviceWrapper::from_pyany(device.into()) {
+        let device_pyany = device.as_gil_ref();
+        if let Ok(dev) = DenebDeviceWrapper::from_pyany(device_pyany.into()) {
             iqm_device = IqmDevice::from(dev);
-        } else if let Ok(dev) = GarnetDeviceWrapper::from_pyany(device.into()) {
+        } else if let Ok(dev) = GarnetDeviceWrapper::from_pyany(device_pyany.into()) {
             iqm_device = IqmDevice::from(dev);
-        } else if let Ok(dev) = ResonatorFreeDeviceWrapper::from_pyany(device.into()) {
+        } else if let Ok(dev) = ResonatorFreeDeviceWrapper::from_pyany(device_pyany.into()) {
             iqm_device = IqmDevice::from(dev);
         } else {
             return Err(PyRuntimeError::new_err(
@@ -151,7 +152,7 @@ impl BackendWrapper {
         let serialized = serialize(&self.internal)
             .map_err(|_| PyValueError::new_err("Cannot serialize Backend to bytes"))?;
         let b: Py<PyByteArray> = Python::with_gil(|py| -> Py<PyByteArray> {
-            PyByteArray::new(py, &serialized[..]).into()
+            PyByteArray::new_bound(py, &serialized[..]).into()
         });
         Ok(b)
     }
@@ -168,7 +169,7 @@ impl BackendWrapper {
     ///     TypeError: Input cannot be converted to byte array.
     ///     ValueError: Input cannot be deserialized to Backend.
     #[staticmethod]
-    pub fn from_bincode(input: &PyAny) -> PyResult<BackendWrapper> {
+    pub fn from_bincode(input: &Bound<PyAny>) -> PyResult<BackendWrapper> {
         let bytes = input
             .extract::<Vec<u8>>()
             .map_err(|_| PyTypeError::new_err("Input cannot be converted to byte array"))?;
@@ -225,7 +226,7 @@ impl BackendWrapper {
     /// Raises:
     ///     TypeError: Circuit argument cannot be converted to qoqo Circuit
     ///     RuntimeError: Running Circuit failed
-    pub fn run_circuit(&self, circuit: &PyAny) -> PyResult<Registers> {
+    pub fn run_circuit(&self, circuit: &Bound<PyAny>) -> PyResult<Registers> {
         let circuit = convert_into_circuit(circuit).map_err(|err| {
             PyTypeError::new_err(format!(
                 "Circuit argument cannot be converted to qoqo Circuit: {:?}",
@@ -248,7 +249,10 @@ impl BackendWrapper {
     /// Raises:
     ///     TypeError: Measurement evaluate function could not be used
     ///     RuntimeError: Internal error measurement. Evaluation returned unknown type
-    pub fn run_measurement(&self, measurement: &PyAny) -> PyResult<Option<HashMap<String, f64>>> {
+    pub fn run_measurement(
+        &self,
+        measurement: &Bound<PyAny>,
+    ) -> PyResult<Option<HashMap<String, f64>>> {
         let circuit_batch = get_circuit_list_from_measurement(measurement)?;
         let registers = self
             .internal
@@ -277,7 +281,7 @@ impl BackendWrapper {
     ///     TypeError: The `evaluate` function of the measurement was passed the wrong input type
     fn evaluate_measurement(
         &self,
-        measurement: &PyAny,
+        measurement: &Bound<PyAny>,
         registers: Registers,
     ) -> PyResult<Option<HashMap<String, f64>>> {
         let get_expectation_values =
@@ -315,7 +319,7 @@ impl BackendWrapper {
     pub fn get_measurement_results(
         &self,
         id: String,
-        measurement: &PyAny,
+        measurement: &Bound<PyAny>,
     ) -> PyResult<Option<HashMap<String, f64>>> {
         let results = self.internal.wait_for_results(id.clone()).map_err(|err| {
             PyRuntimeError::new_err(format!(
@@ -342,10 +346,10 @@ impl BackendWrapper {
     ///
     /// Raises:
     ///     RuntimeError: Something went wrong when submitting the job to the backend.
-    pub fn submit_circuit_batch(&self, circuits: Vec<PyObject>) -> PyResult<String> {
+    pub fn submit_circuit_batch(&self, circuits: Vec<Bound<PyAny>>) -> PyResult<String> {
         let mut circuit_batch: Vec<Circuit> = Vec::new();
         for circuit in circuits.into_iter() {
-            let tmp_circuit = CircuitWrapper::from_pyany(circuit).map_err(|err| {
+            let tmp_circuit = CircuitWrapper::from_pyany(&circuit).map_err(|err| {
                 PyTypeError::new_err(format!(
                     "`circuits` argument is not a list of qoqo Circuits: {}",
                     err
@@ -400,7 +404,7 @@ impl BackendWrapper {
     ///
     /// Raises:
     ///     RuntimeError: Something went wrong when submitting the job to the backend.
-    pub fn submit_measurement(&self, measurement: &PyAny) -> PyResult<String> {
+    pub fn submit_measurement(&self, measurement: &Bound<PyAny>) -> PyResult<String> {
         let circuit_batch = get_circuit_list_from_measurement(measurement).map_err(|err| {
             PyRuntimeError::new_err(format!(
                 "Something went wrong when extracting the circuit list from the measurement: {:?}",
@@ -420,7 +424,7 @@ impl BackendWrapper {
 
 /// Helper function to construct the list of circuits from a measurement by appending each circuit
 /// contained in the measurement to the constant circuit.
-fn get_circuit_list_from_measurement(measurement: &PyAny) -> PyResult<Vec<Circuit>> {
+fn get_circuit_list_from_measurement(measurement: &Bound<PyAny>) -> PyResult<Vec<Circuit>> {
     let mut run_circuits: Vec<Circuit> = Vec::new();
 
     let constant_circuit_pyany = measurement
@@ -440,7 +444,7 @@ fn get_circuit_list_from_measurement(measurement: &PyAny) -> PyResult<Vec<Circui
         })?;
 
     let constant_circuit = match constant_circuit_pyany {
-        Some(x) => convert_into_circuit(x).map_err(|err| {
+        Some(x) => convert_into_circuit(&x.as_borrowed()).map_err(|err| {
             PyTypeError::new_err(format!(
                 "Cannot extract constant circuit from measurement: {:?}",
                 err
@@ -468,7 +472,7 @@ fn get_circuit_list_from_measurement(measurement: &PyAny) -> PyResult<Vec<Circui
     for c in circuit_list {
         run_circuits.push(
             constant_circuit.clone()
-                + convert_into_circuit(c).map_err(|err| {
+                + convert_into_circuit(&c.as_borrowed()).map_err(|err| {
                     PyTypeError::new_err(format!(
                         "Cannot extract circuit of circuit list from measurement: {:?}",
                         err
