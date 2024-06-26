@@ -47,7 +47,7 @@ impl GarnetDeviceWrapper {
     ///     PyTypeError: Something went wrong during the downcasting.
     pub fn from_pyany(input: Py<PyAny>) -> PyResult<GarnetDevice> {
         Python::with_gil(|py| -> PyResult<GarnetDevice> {
-            let input = input.as_ref(py);
+            let input = input.bind(py);
             if let Ok(try_downcast) = input.extract::<GarnetDeviceWrapper>() {
                 Ok(try_downcast.internal)
             } else {
@@ -106,7 +106,7 @@ impl GarnetDeviceWrapper {
         let serialized = serialize(&self.internal)
             .map_err(|_| PyValueError::new_err("Cannot serialize GarnetDevice to bytes"))?;
         let b: Py<PyByteArray> = Python::with_gil(|py| -> Py<PyByteArray> {
-            PyByteArray::new(py, &serialized[..]).into()
+            PyByteArray::new_bound(py, &serialized[..]).into()
         });
         Ok(b)
     }
@@ -123,7 +123,7 @@ impl GarnetDeviceWrapper {
     ///     TypeError: Input cannot be converted to byte array.
     ///     ValueError: Input cannot be deserialized to GarnetDevice.
     #[staticmethod]
-    pub fn from_bincode(input: &PyAny) -> PyResult<GarnetDeviceWrapper> {
+    pub fn from_bincode(input: &Bound<PyAny>) -> PyResult<GarnetDeviceWrapper> {
         let bytes = input
             .extract::<Vec<u8>>()
             .map_err(|_| PyTypeError::new_err("Input cannot be converted to byte array"))?;
